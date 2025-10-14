@@ -10,13 +10,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .drop-zone-active { border-color: #2563eb; background-color: #eff6ff; }
         .tab-active { border-color: #3b82f6; color: #3b82f6; }
         .tab-inactive { border-color: transparent; color: #64748b; }
         .modal-backdrop { background-color: rgba(0,0,0,0.5); }
+        .thumbnail-container { position: relative; }
+        .thumbnail-delete {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .thumbnail-container:hover .thumbnail-delete {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
+    <!-- Global Dropzone Overlay -->
+    <div id="global-drop-overlay" class="hidden fixed inset-0 z-50 bg-sky-500 bg-opacity-75 transition-opacity">
+        <!-- Content will be injected by JS -->
+    </div>
+
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Assistant Inventaire & Estimation</h1>
@@ -52,44 +76,31 @@
 
                 <!-- Add Item Section -->
                 <div class="mb-8">
-                    <!-- Prompt to add API Key -->
                     <div id="api-key-prompt" class="hidden text-center py-10 px-6 bg-white rounded-xl shadow-sm border border-slate-200">
-                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                        </svg>
+                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" /></svg>
                         <h3 class="mt-2 text-sm font-semibold text-slate-900">Ajoutez votre clé API pour commencer</h3>
                         <p class="mt-1 text-sm text-slate-500">Pour analyser et ajouter de nouveaux objets, veuillez d'abord configurer votre clé API.</p>
-                        <button id="go-to-config-btn" class="mt-4 rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Aller à la Configuration</button>
+                        <button id="go-to-config-btn" class="mt-4 rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Aller à la Configuration</button>
                     </div>
-
-                    <!-- Main Upload Interface -->
-                    <div id="upload-interface" class="hidden">
-                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <div id="upload-section">
-                                <h2 class="text-xl font-semibold mb-3 text-slate-800">Ajouter de nouveaux objets</h2>
-                                <div id="drop-zone" class="mt-2 flex justify-center rounded-lg border-2 border-dashed border-slate-300 px-6 py-10 transition-colors">
-                                    <div class="text-center">
-                                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                        <div class="mt-4 flex text-sm leading-6 text-slate-600"><label for="file-upload" class="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"><span>Cliquez pour choisir</span><input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" multiple></label><p class="pl-1">ou glissez-déposez</p></div>
-                                        <p class="text-xs leading-5 text-slate-500">PNG, JPG, GIF jusqu'à 10MB</p>
-                                    </div>
+                     <div id="upload-interface" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div id="upload-section">
+                            <h2 class="text-xl font-semibold mb-3 text-slate-800">Ajouter de nouveaux objets</h2>
+                            <div id="drop-zone" class="mt-2 flex justify-center rounded-lg border-2 border-dashed border-slate-300 px-6 py-10 transition-colors">
+                                <div id="drop-zone-content" class="text-center">
+                                    <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                    <div class="mt-4 flex text-sm leading-6 text-slate-600"><label for="file-upload" class="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"><span>Cliquez pour choisir</span><input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" multiple></label><p class="pl-1">ou glissez-déposez n'importe où</p></div>
+                                    <p class="text-xs leading-5 text-slate-500">PNG, JPG, GIF jusqu'à 10MB</p>
                                 </div>
                             </div>
-                            <div id="batch-progress-section" class="hidden">
-                                <!-- Batch progress will be injected here -->
-                            </div>
                         </div>
+                        <div id="batch-progress-section" class="hidden"></div>
                     </div>
                 </div>
 
                  <!-- Inventory Grid -->
-                <div id="inventory-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Inventory items will be injected here -->
-                </div>
+                <div id="inventory-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
                  <div id="inventory-empty-state" class="text-center py-16 px-6 bg-white rounded-xl shadow-sm border border-slate-200">
-                    <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path>
-                    </svg>
+                    <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
                     <h3 class="mt-2 text-sm font-semibold text-slate-900">Aucun objet dans l'inventaire</h3>
                     <p class="mt-1 text-sm text-slate-500">Commencez par ajouter un objet en utilisant la zone ci-dessus.</p>
                 </div>
@@ -110,13 +121,11 @@
     </div>
 
     <!-- MODAL -->
-    <div id="modal" class="relative z-10 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity modal-backdrop"></div>
-        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+    <div id="modal" class="relative z-10 hidden">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div id="modal-container" class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div id="modal-panel" class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                    <!-- Modal content is injected here -->
-                </div>
+                <div id="modal-panel" class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl"></div>
             </div>
         </div>
     </div>
@@ -124,60 +133,40 @@
     <script type="module">
         // --- STATE MANAGEMENT ---
         let inventory = [];
-        let currentView = 'dashboard';
+        let currentItemIdInModal = null;
+        let initialModalState = '';
+        const getEl = (id) => document.getElementById(id);
 
         // --- DOM Elements ---
-        const tabs = {
-            dashboard: document.getElementById('tab-dashboard'),
-            config: document.getElementById('tab-config'),
-        };
-        const contents = {
-            dashboard: document.getElementById('content-dashboard'),
-            config: document.getElementById('content-config'),
-        };
-        const apiKeyInput = document.getElementById('api-key-input');
-        const saveApiKeyButton = document.getElementById('save-api-key');
-        const keySavedMessage = document.getElementById('key-saved-message');
-        
-        const apiKeyPrompt = document.getElementById('api-key-prompt');
-        const goToConfigBtn = document.getElementById('go-to-config-btn');
-        const uploadInterface = document.getElementById('upload-interface');
-        
-        const dropZone = document.getElementById('drop-zone');
-        const fileUpload = document.getElementById('file-upload');
-        const uploadSection = document.getElementById('upload-section');
-        const batchProgressSection = document.getElementById('batch-progress-section');
-        
-        const modal = document.getElementById('modal');
-        const modalPanel = document.getElementById('modal-panel');
-        const inventoryContainer = document.getElementById('inventory-container');
-        const inventoryEmptyState = document.getElementById('inventory-empty-state');
+        const tabs = { dashboard: getEl('tab-dashboard'), config: getEl('tab-config') };
+        const contents = { dashboard: getEl('content-dashboard'), config: getEl('content-config') };
+        const apiKeyInput = getEl('api-key-input');
+        const saveApiKeyButton = getEl('save-api-key');
+        const keySavedMessage = getEl('key-saved-message');
+        const apiKeyPrompt = getEl('api-key-prompt');
+        const goToConfigBtn = getEl('go-to-config-btn');
+        const uploadInterface = getEl('upload-interface');
+        const fileUpload = getEl('file-upload');
+        const batchProgressSection = getEl('batch-progress-section');
+        const modal = getEl('modal');
+        const modalPanel = getEl('modal-panel');
+        const inventoryContainer = getEl('inventory-container');
+        const inventoryEmptyState = getEl('inventory-empty-state');
         const summary = {
-            totalItems: document.getElementById('summary-total-items'),
-            toSellValue: document.getElementById('summary-to-sell-value'),
-            soldValue: document.getElementById('summary-sold-value'),
+            totalItems: getEl('summary-total-items'),
+            toSellValue: getEl('summary-to-sell-value'),
+            soldValue: getEl('summary-sold-value'),
         };
 
         // --- CORE LOGIC ---
-        
         function navigate(view) {
-            currentView = view;
             Object.keys(tabs).forEach(key => {
-                const tab = tabs[key];
-                const content = contents[key];
-                if (key === view) {
-                    tab.classList.remove('tab-inactive');
-                    tab.classList.add('tab-active');
-                    content.classList.remove('hidden');
-                    if (key === 'config') {
-                        apiKeyInput.focus();
-                    }
-                } else {
-                    tab.classList.remove('tab-active');
-                    tab.classList.add('tab-inactive');
-                    content.classList.add('hidden');
-                }
+                const isActive = key === view;
+                tabs[key].classList.toggle('tab-active', isActive);
+                tabs[key].classList.toggle('tab-inactive', !isActive);
+                contents[key].classList.toggle('hidden', !isActive);
             });
+            if (view === 'config') apiKeyInput.focus();
         }
 
         function updateUploadVisibility() {
@@ -193,6 +182,15 @@
         function loadInventory() {
             const savedInventory = localStorage.getItem('inventory');
             inventory = savedInventory ? JSON.parse(savedInventory) : [];
+            // Data migration for listingURL -> listingURLs
+            inventory.forEach(item => {
+                if (item.listingURL && !item.listingURLs) {
+                    item.listingURLs = [item.listingURL];
+                    delete item.listingURL;
+                } else if (!item.listingURLs) {
+                    item.listingURLs = [];
+                }
+            });
             renderDashboard();
         }
 
@@ -207,7 +205,7 @@
         }
 
         function addItem(item) {
-            inventory.unshift(item); // Add to the beginning
+            inventory.unshift(item);
             saveInventory();
         }
 
@@ -220,62 +218,24 @@
         }
         
         function deleteItem(itemId) {
-            const itemToDelete = inventory.find(i => i.id === itemId);
-            if (!itemToDelete) return;
-
-            const content = `
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <div class="sm:flex sm:items-start">
-                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                            </svg>
-                        </div>
-                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                            <h3 class="text-base font-semibold leading-6 text-gray-900">Supprimer l'objet</h3>
-                            <div class="mt-2">
-                                <p class="text-sm text-gray-500">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}"? Cette action est irréversible.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                    <button id="modal-confirm-delete" type="button" class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">Supprimer</button>
-                    <button id="modal-cancel-delete" type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">Annuler</button>
-                </div>
-            `;
-            openModal(content);
-            document.getElementById('modal-confirm-delete').onclick = () => {
-                inventory = inventory.filter(i => i.id !== itemId);
-                saveInventory();
-                closeModal();
-            };
-            document.getElementById('modal-cancel-delete').onclick = closeModal;
+            inventory = inventory.filter(i => i.id !== itemId);
+            saveInventory();
+            closeModal();
         }
 
-
         // --- RENDER FUNCTIONS ---
-        
         function renderDashboard() {
             inventoryContainer.innerHTML = '';
-            if (inventory.length === 0) {
-                inventoryEmptyState.classList.remove('hidden');
-                inventoryContainer.classList.add('hidden');
-            } else {
-                inventoryEmptyState.classList.add('hidden');
-                inventoryContainer.classList.remove('hidden');
-                inventory.forEach(item => {
-                    inventoryContainer.appendChild(createItemCard(item));
-                });
-            }
+            inventory.length === 0 ? inventoryEmptyState.classList.remove('hidden') : inventoryEmptyState.classList.add('hidden');
+            inventory.length > 0 ? inventoryContainer.classList.remove('hidden') : inventoryContainer.classList.add('hidden');
+            inventory.forEach(item => inventoryContainer.appendChild(createItemCard(item)));
             updateSummary();
         }
 
         function updateSummary() {
             summary.totalItems.textContent = inventory.length;
-            const toSellValue = inventory.filter(i => i.status === 'À Vendre').reduce((acc, i) => acc + (i.lowEstimate || 0), 0);
-            const soldValue = inventory.filter(i => i.status === 'Vendu').reduce((acc, i) => acc + (i.soldPrice || i.highEstimate || 0), 0);
-            
+            const toSellValue = inventory.filter(i => i.status === 'À Vendre').reduce((acc, i) => acc + ((i.lowEstimate || 0) * (i.quantity || 1)), 0);
+            const soldValue = inventory.filter(i => i.status === 'Vendu').reduce((acc, i) => acc + (i.soldPrice || 0), 0);
             summary.toSellValue.textContent = `${toSellValue.toFixed(2)} €`;
             summary.soldValue.textContent = `${soldValue.toFixed(2)} €`;
         }
@@ -283,143 +243,291 @@
         function createItemCard(item) {
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden";
-            
-            const statusColors = {
-                'À Vendre': 'bg-green-100 text-green-800',
-                'Vendu': 'bg-blue-100 text-blue-800',
-                'Gardé': 'bg-slate-100 text-slate-800',
-            };
+            const statusColors = { 'À Vendre': 'bg-green-100 text-green-800', 'Vendu': 'bg-blue-100 text-blue-800', 'Gardé': 'bg-slate-100 text-slate-800' };
+            const firstListingURL = item.listingURLs && item.listingURLs.length > 0 ? item.listingURLs[0] : null;
 
             card.innerHTML = `
-                <div data-action="edit" data-id="${item.id}" class="cursor-pointer group flex-grow flex flex-col">
-                    <img src="${item.image}" alt="${item.name}" class="h-48 w-full object-cover group-hover:opacity-90 transition-opacity">
+                <div data-action="edit" data-id="${item.id}" class="cursor-pointer group relative flex-grow flex flex-col">
+                    <img src="${item.images[0]}" alt="${item.name}" class="h-48 w-full object-cover group-hover:opacity-90 transition-opacity">
+                    ${item.images.length > 1 ? `<div class="absolute top-2 right-2 bg-slate-900 bg-opacity-60 text-white text-xs font-semibold px-2 py-1 rounded-full">+${item.images.length - 1}</div>` : ''}
+                    ${(item.quantity || 1) > 1 ? `<div class="absolute bottom-2 left-2 bg-slate-900 bg-opacity-60 text-white text-xs font-semibold px-2 py-1 rounded-full">x${item.quantity}</div>` : ''}
                     <div class="p-4 flex flex-col flex-grow">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-semibold text-slate-900 pr-2 flex-1">${item.name}</h3>
-                            <span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[item.status] || ''}">${item.status}</span>
-                        </div>
+                        <div class="flex justify-between items-start"><h3 class="font-semibold text-slate-900 pr-2 flex-1">${item.name}</h3><span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[item.status] || ''}">${item.status}</span></div>
                         <p class="text-sm text-slate-500 mt-1 line-clamp-2">${item.description}</p>
                         <div class="mt-4 pt-4 border-t border-slate-100 flex-grow flex flex-col justify-end">
-                            <p class="text-right">
-                                <span class="text-sm text-slate-500">Estimé:</span>
-                                <span class="font-bold text-lg text-blue-700 ml-1">${item.lowEstimate}€ - ${item.highEstimate}€</span>
-                            </p>
-                             ${item.listingURL ? `<a href="${item.listingURL}" target="_blank" rel="noopener noreferrer" class="mt-2 text-sm text-center w-full block bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1.5 px-3 rounded-md">Voir l'annonce</a>` : ''}
+                            <p class="text-right"><span class="text-sm text-slate-500">Estimé:</span><span class="font-bold text-lg text-blue-700 ml-1">${item.lowEstimate}€ - ${item.highEstimate}€</span></p>
+                            ${firstListingURL ? `<a href="${firstListingURL}" target="_blank" rel="noopener noreferrer" class="mt-2 text-sm text-center w-full block bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1.5 px-3 rounded-md">Voir l'annonce</a>` : ''}
                         </div>
                     </div>
-                </div>
-                <div class="bg-slate-50 border-t border-slate-200 px-4 py-2 flex justify-end gap-x-2">
-                    <button data-action="edit" data-id="${item.id}" class="text-sm font-medium text-blue-600 hover:text-blue-800">Modifier</button>
-                    <button data-action="delete" data-id="${item.id}" class="text-sm font-medium text-red-600 hover:text-red-800">Supprimer</button>
-                </div>
-            `;
+                </div>`;
             return card;
         }
         
         // --- MODAL ---
-
-        function openModal(content) {
-            modalPanel.innerHTML = content;
-            modal.classList.remove('hidden');
-        }
-
+        function openModal(content) { modalPanel.innerHTML = content; modal.classList.remove('hidden'); }
         function closeModal() {
             modal.classList.add('hidden');
             modalPanel.innerHTML = '';
+            currentItemIdInModal = null;
+            initialModalState = '';
+        }
+
+        function collectItemDataFromModal() {
+            if (!getEl('modal-edit-name')) return null;
+            const listingURLs = Array.from(getEl('listing-urls-container').querySelectorAll('span')).map(span => span.textContent);
+            return {
+                name: getEl('modal-edit-name').value,
+                description: getEl('modal-edit-description').value,
+                quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1,
+                lowEstimate: parseFloat(getEl('modal-edit-low').value),
+                highEstimate: parseFloat(getEl('modal-edit-high').value),
+                status: getEl('modal-edit-status').value,
+                soldPrice: getEl('modal-edit-status').value === 'Vendu' ? (parseFloat(getEl('modal-edit-sold-price').value) || null) : null,
+                listingURLs: listingURLs
+            };
         }
 
         function showEditModal(item) {
-             const content = `
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg font-semibold leading-6 text-gray-900">Modifier l'objet</h3>
-                    <div class="mt-4">
-                        <div><label class="block text-sm text-slate-600">Nom de l'objet</label><input id="modal-edit-name" class="w-full rounded-md border-slate-300" value="${item.name}"></div>
-                        <div class="mt-2"><label class="block text-sm text-slate-600">Description</label><textarea id="modal-edit-description" class="w-full rounded-md border-slate-300 mt-1">${item.description}</textarea></div>
-                        <div class="grid grid-cols-2 gap-4 mt-2">
-                            <div><label class="block text-sm text-slate-600">Est. basse (€)</label><input id="modal-edit-low" type="number" class="w-full rounded-md border-slate-300" value="${item.lowEstimate}"></div>
-                            <div><label class="block text-sm text-slate-600">Est. haute (€)</label><input id="modal-edit-high" type="number" class="w-full rounded-md border-slate-300" value="${item.highEstimate}"></div>
+            currentItemIdInModal = item.id;
+            const content = `
+                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4 max-h-[90vh] overflow-y-auto">
+                     <div class="flex justify-between items-start pb-4 border-b mb-4">
+                        <input id="modal-edit-name" class="text-xl font-semibold text-gray-900 w-full border-0 focus:ring-0 p-0" placeholder="Nom de l'objet" value="${item.name}">
+                        <div class="flex items-center gap-x-1 ml-4">
+                            <span class="text-slate-500 font-semibold">×</span>
+                            <input id="modal-edit-quantity" type="number" class="w-20 rounded-md border-slate-300 text-right" value="${item.quantity || 1}" min="1">
                         </div>
-                        <div class="mt-2"><label class="block text-sm text-slate-600">Statut</label>
-                            <select id="modal-edit-status" class="w-full rounded-md border-slate-300 mt-1">
-                                <option value="À Vendre" ${item.status === 'À Vendre' ? 'selected' : ''}>À Vendre</option>
-                                <option value="Vendu" ${item.status === 'Vendu' ? 'selected' : ''}>Vendu</option>
-                                <option value="Gardé" ${item.status === 'Gardé' ? 'selected' : ''}>Gardé</option>
-                            </select>
+                    </div>
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Left Column: Photos -->
+                        <div>
+                            <img id="modal-main-image" src="${item.images[0]}" alt="Main image" class="w-full h-64 object-contain rounded-lg bg-slate-100 mb-3">
+                            <div id="modal-thumbnails" class="flex flex-wrap gap-2"></div>
+                             <label for="modal-add-photos-input" class="mt-3 inline-block cursor-pointer rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Ajouter des photos</label>
+                            <input type="file" id="modal-add-photos-input" class="sr-only" multiple accept="image/*">
                         </div>
-                        <div id="modal-edit-sold-price-container" class="mt-2 ${item.status !== 'Vendu' ? 'hidden' : ''}">
-                           <label class="block text-sm text-slate-600">Prix de vente (€)</label>
-                           <input id="modal-edit-sold-price" type="number" class="w-full rounded-md border-slate-300 mt-1" value="${item.soldPrice || ''}" placeholder="ex: 120.50">
-                        </div>
-                        <div class="mt-2"><label class="block text-sm text-slate-600">Lien de l'annonce</label><input id="modal-edit-url" type="text" class="w-full rounded-md border-slate-300 mt-1" value="${item.listingURL || ''}" placeholder="https://www.leboncoin.fr/..."></div>
-                         <div class="mt-4">
-                            <h4 class="text-sm font-semibold text-slate-700">Vérifier le prix en ligne</h4>
-                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t pt-3">
-                                <a href="https://www.google.com/search?q=${encodeURIComponent(item.name)}&tbm=shop" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                                    Shopping
-                                </a>
-                                <a href="https://www.leboncoin.fr/recherche?text=${encodeURIComponent(item.name)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">
-                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    Leboncoin
-                                </a>
-                                <a href="https://www.ebay.fr/sch/i.html?_nkw=${encodeURIComponent(item.name)}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5a2 2 0 012 2v5a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" /></svg>
-                                    eBay
-                                </a>
+                        <!-- Right Column: Details -->
+                        <div class="space-y-3">
+                            <div><label class="block text-sm text-slate-600">Description</label><textarea id="modal-edit-description" rows="3" class="w-full rounded-md border-slate-300 mt-1">${item.description}</textarea></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="block text-sm text-slate-600">Est. basse (€)</label><input id="modal-edit-low" type="number" class="w-full rounded-md border-slate-300" value="${item.lowEstimate}"></div>
+                                <div><label class="block text-sm text-slate-600">Est. haute (€)</label><input id="modal-edit-high" type="number" class="w-full rounded-md border-slate-300" value="${item.highEstimate}"></div>
+                            </div>
+                            <div><label class="block text-sm text-slate-600">Statut</label>
+                                <select id="modal-edit-status" class="w-full rounded-md border-slate-300 mt-1">
+                                    <option value="À Vendre" ${item.status === 'À Vendre' ? 'selected' : ''}>À Vendre</option>
+                                    <option value="Vendu" ${item.status === 'Vendu' ? 'selected' : ''}>Vendu</option>
+                                    <option value="Gardé" ${item.status === 'Gardé' ? 'selected' : ''}>Gardé</option>
+                                </select>
+                            </div>
+                            <div id="modal-edit-sold-price-container" class="mt-2 ${item.status !== 'Vendu' ? 'hidden' : ''}">
+                               <label class="block text-sm text-slate-600">Prix de vente total (€)</label>
+                               <input id="modal-edit-sold-price" type="number" class="w-full rounded-md border-slate-300 mt-1" value="${item.soldPrice || ''}" placeholder="ex: 120.50">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-600">Liens des annonces</label>
+                                <div class="flex items-center gap-x-2 mt-1">
+                                    <input id="modal-edit-url-input" type="text" class="block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm" placeholder="https://www.leboncoin.fr/...">
+                                    <button id="modal-add-url-btn" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Ajouter</button>
+                                </div>
+                                <div id="listing-urls-container" class="mt-2 space-y-1"></div>
+                            </div>
+                            <div class="mt-4 border-t pt-4">
+                                <label class="block text-sm font-semibold text-slate-700">Vérifier le prix en ligne</label>
+                                <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <button id="modal-search-google" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">Google Shopping</button>
+                                    <button id="modal-search-leboncoin" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">Leboncoin</button>
+                                    <button id="modal-search-ebay" class="flex items-center justify-center gap-x-2 text-sm w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-md transition-colors">eBay</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="bg-gray-50 px-4 py-3 sm:flex sm:justify-between sm:items-center sm:px-6">
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:justify-between sm:items-center sm:px-6 border-t">
                     <button id="modal-delete-item" type="button" class="inline-flex justify-center rounded-md bg-red-100 px-3 py-2 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-inset ring-red-200 hover:bg-red-200">Supprimer</button>
-                    <div class="mt-4 sm:mt-0 sm:flex sm:flex-row-reverse">
-                         <button id="modal-save-edit" type="button" class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto">Sauvegarder</button>
-                         <button id="modal-cancel-edit" type="button" class="mt-3 sm:mt-0 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto">Annuler</button>
+                    <div class="mt-4 sm:mt-0 flex justify-end items-center gap-x-3">
+                         <button id="modal-reanalyze-image" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Analyser l'image</button>
+                         <button id="modal-update-estimation" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Actualiser l'estimation</button>
+                         <button id="modal-cancel-edit" type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button>
+                         <button id="modal-save-edit" type="button" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Sauvegarder</button>
                     </div>
-                </div>
-            `;
+                </div>`;
             openModal(content);
 
-            const statusSelect = document.getElementById('modal-edit-status');
-            const soldPriceContainer = document.getElementById('modal-edit-sold-price-container');
-            statusSelect.addEventListener('change', (e) => {
-                soldPriceContainer.classList.toggle('hidden', e.target.value !== 'Vendu');
-            });
+            let currentItemState = { ...item, listingURLs: [...item.listingURLs], images: [...item.images] };
+
+            const mainImage = getEl('modal-main-image');
+            const thumbnailsDiv = getEl('modal-thumbnails');
+            const addPhotosInput = getEl('modal-add-photos-input');
+            const listingUrlsContainer = getEl('listing-urls-container');
+            const addUrlBtn = getEl('modal-add-url-btn');
+            const urlInput = getEl('modal-edit-url-input');
+
+            // --- PHOTO MANAGEMENT ---
+            const renderThumbnails = () => {
+                thumbnailsDiv.innerHTML = '';
+                currentItemState.images.forEach((imgSrc, index) => {
+                    const thumbContainer = document.createElement('div');
+                    thumbContainer.className = 'thumbnail-container';
+                    thumbContainer.innerHTML = `<img src="${imgSrc}" class="h-16 w-16 object-cover rounded-md cursor-pointer border-2 ${imgSrc === mainImage.src ? 'border-blue-500' : 'border-transparent'}"><div class="thumbnail-delete" data-index="${index}">&#x2715;</div>`;
+                    thumbnailsDiv.appendChild(thumbContainer);
+                });
+            };
             
-            document.getElementById('modal-delete-item').onclick = () => {
-                closeModal();
-                setTimeout(() => deleteItem(item.id), 150);
+            thumbnailsDiv.addEventListener('click', e => {
+                if (e.target.tagName === 'IMG') { mainImage.src = e.target.src; renderThumbnails(); }
+                if (e.target.dataset.index) {
+                    if (currentItemState.images.length <= 1) { alert("Vous ne pouvez pas supprimer la dernière photo."); return; }
+                    const indexToRemove = parseInt(e.target.dataset.index, 10);
+                    const removedSrc = currentItemState.images[indexToRemove];
+                    currentItemState.images.splice(indexToRemove, 1);
+                    if (mainImage.src === removedSrc) mainImage.src = currentItemState.images[0];
+                    renderThumbnails();
+                }
+            });
+
+            const addPhotos = async (files) => {
+                 for (const file of files) {
+                    const base64 = await readFileAsDataURL(file);
+                    const thumb = await createThumbnail(base64);
+                    currentItemState.images.push(thumb);
+                }
+                renderThumbnails();
+            };
+            addPhotosInput.addEventListener('change', (e) => addPhotos(Array.from(e.target.files)));
+            window.addPhotosToModal = addPhotos;
+            renderThumbnails();
+
+            // --- URL MANAGEMENT ---
+            const renderUrls = () => {
+                listingUrlsContainer.innerHTML = '';
+                currentItemState.listingURLs.forEach((url, index) => {
+                    const urlEl = document.createElement('div');
+                    urlEl.className = 'flex items-center justify-between bg-slate-100 px-2 py-1 rounded-md';
+                    urlEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline truncate pr-2"><span>${url}</span></a><button data-index="${index}" class="url-delete-btn text-slate-500 hover:text-slate-800">&times;</button>`;
+                    listingUrlsContainer.appendChild(urlEl);
+                });
             };
 
-            document.getElementById('modal-save-edit').onclick = () => {
-                const updatedStatus = document.getElementById('modal-edit-status').value;
-                const soldPriceInput = document.getElementById('modal-edit-sold-price');
-                const updatedData = {
-                    name: document.getElementById('modal-edit-name').value,
-                    description: document.getElementById('modal-edit-description').value,
-                    lowEstimate: parseFloat(document.getElementById('modal-edit-low').value),
-                    highEstimate: parseFloat(document.getElementById('modal-edit-high').value),
-                    status: updatedStatus,
-                    listingURL: document.getElementById('modal-edit-url').value,
-                    soldPrice: updatedStatus === 'Vendu' ? (parseFloat(soldPriceInput.value) || null) : null
-                };
+            addUrlBtn.addEventListener('click', () => {
+                if (urlInput.value.trim()) {
+                    try { new URL(urlInput.value.trim()); currentItemState.listingURLs.push(urlInput.value.trim()); urlInput.value = ''; renderUrls(); }
+                    catch(e) { alert("Veuillez entrer une URL valide."); }
+                }
+            });
+            listingUrlsContainer.addEventListener('click', e => {
+                if(e.target.classList.contains('url-delete-btn')) { currentItemState.listingURLs.splice(e.target.dataset.index, 1); renderUrls(); }
+            });
+            renderUrls();
+
+            // --- OTHER EVENT LISTENERS ---
+            const statusSelect = getEl('modal-edit-status');
+            const soldPriceContainer = getEl('modal-edit-sold-price-container');
+            statusSelect.addEventListener('change', (e) => soldPriceContainer.classList.toggle('hidden', e.target.value !== 'Vendu'));
+            
+            getEl('modal-delete-item').onclick = () => {
+                closeModal(); // Close current modal before opening confirm
+                setTimeout(() => { // Allow UI to update
+                    const itemToDelete = inventory.find(i => i.id === item.id);
+                    if (!itemToDelete) return;
+                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'objet</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
+                    openModal(confirmContent);
+                    getEl('modal-confirm-delete').onclick = () => deleteItem(item.id);
+                    getEl('modal-cancel-delete').onclick = closeModal;
+                }, 100);
+            };
+
+            const attemptToClose = () => {
+                const currentData = collectItemDataFromModal();
+                if (JSON.stringify(currentData) !== initialModalState) {
+                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
+                    openModal(confirmContent);
+                    getEl('modal-confirm-close').onclick = closeModal;
+                    getEl('modal-cancel-close').onclick = () => showEditModal(item);
+                } else {
+                    closeModal();
+                }
+            };
+            getEl('modal-cancel-edit').onclick = attemptToClose;
+            
+            const modalContainer = getEl('modal-container');
+            modalContainer.addEventListener('click', (e) => {
+                if (e.target === modalContainer) {
+                    attemptToClose();
+                }
+            });
+            
+            const searchHandler = (urlTemplate) => {
+                const itemName = getEl('modal-edit-name').value;
+                const url = urlTemplate.replace('{query}', encodeURIComponent(itemName));
+                window.open(url, '_blank');
+            };
+            
+            getEl('modal-search-google').onclick = () => searchHandler('https://www.google.com/search?q={query}&tbm=shop');
+            getEl('modal-search-leboncoin').onclick = () => searchHandler('https://www.leboncoin.fr/recherche?text={query}');
+            getEl('modal-search-ebay').onclick = () => searchHandler('https://www.ebay.fr/sch/i.html?_nkw={query}');
+            
+            // Re-analyzes the main image in the modal to get new data.
+            getEl('modal-reanalyze-image').onclick = async () => {
+                const btn = getEl('modal-reanalyze-image');
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                try {
+                    const mainImageSrc = getEl('modal-main-image').src;
+                    const analysisResult = await analyzeItemApi({ image: mainImageSrc });
+                    const analyzedData = analysisResult[0];
+                    getEl('modal-edit-name').value = analyzedData.objet;
+                    getEl('modal-edit-description').value = analyzedData.description;
+                    getEl('modal-edit-low').value = analyzedData.estimation_basse;
+                    getEl('modal-edit-high').value = analyzedData.estimation_haute;
+                } catch(err) { 
+                    console.error("Image re-analysis failed:", err); 
+                    alert("L'analyse de l'image a échoué.");
+                } finally { 
+                    btn.disabled = false; 
+                    btn.textContent = "Analyser l'image"; 
+                }
+            };
+
+            // Updates the price estimation based on the text fields in the modal.
+            getEl('modal-update-estimation').onclick = async () => {
+                const btn = getEl('modal-update-estimation');
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                try {
+                    const analysisResult = await analyzeItemApi({ 
+                        name: getEl('modal-edit-name').value, 
+                        description: getEl('modal-edit-description').value, 
+                        quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1 
+                    });
+                     const analyzedData = analysisResult[0];
+                    // The AI might suggest refined text, so we update it all.
+                    getEl('modal-edit-name').value = analyzedData.objet;
+                    getEl('modal-edit-description').value = analyzedData.description;
+                    getEl('modal-edit-low').value = analyzedData.estimation_basse;
+                    getEl('modal-edit-high').value = analyzedData.estimation_haute;
+                } catch(err) { 
+                    console.error("Text-based estimation failed:", err); 
+                    alert("L'actualisation de l'estimation a échoué.");
+                } finally { 
+                    btn.disabled = false; 
+                    btn.textContent = "Actualiser l'estimation"; 
+                }
+            };
+            
+            getEl('modal-save-edit').onclick = () => {
+                const finalData = collectItemDataFromModal();
+                const updatedData = { ...finalData, images: currentItemState.images };
                 updateItem(item.id, updatedData);
                 closeModal();
             };
-            document.getElementById('modal-cancel-edit').onclick = closeModal;
-        }
 
+            const initialData = collectItemDataFromModal();
+            initialModalState = JSON.stringify(initialData);
+        }
 
         // --- API & FILE HANDLING ---
-        
-        function readFileAsDataURL(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = () => reject(reader.error);
-                reader.readAsDataURL(file);
-            });
-        }
+        function readFileAsDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); }
         
         function createThumbnail(base64, maxWidth = 400, maxHeight = 400) {
             return new Promise((resolve, reject) => {
@@ -427,160 +535,91 @@
                 img.src = base64;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > maxWidth) {
-                            height *= maxWidth / width;
-                            width = maxWidth;
-                        }
-                    } else {
-                        if (height > maxHeight) {
-                            width *= maxHeight / height;
-                            height = maxHeight;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
+                    let { width, height } = img;
+                    if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } }
+                    else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } }
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', 0.7));
                 };
-                img.onerror = (error) => reject(error);
+                img.onerror = reject;
             });
         }
 
         async function handleFiles(files) {
-            if (files.length === 0) return;
-            if (!apiKeyInput.value) { 
-                alert("Veuillez entrer votre clé API dans l'onglet Configuration."); 
-                navigate('config'); 
-                return; 
+            if (files.length === 0 || !apiKeyInput.value) return;
+
+            if (batchProgressSection.classList.contains('hidden')) {
+                batchProgressSection.classList.remove('hidden');
+                batchProgressSection.innerHTML = `<div class="flex justify-between items-center mb-4 mt-6 border-t pt-6"><h2 class="text-xl font-semibold text-slate-800">Progression des analyses</h2><button id="batch-clear-btn" class="rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-300">Effacer terminés</button></div><div id="progress-cards-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>`;
+                getEl('batch-clear-btn').onclick = () => {
+                    getEl('progress-cards-container').querySelectorAll('[data-status="done"]').forEach(card => card.remove());
+                    if (getEl('progress-cards-container').childElementCount === 0) batchProgressSection.classList.add('hidden');
+                };
             }
-
-            uploadSection.classList.add('hidden');
-            batchProgressSection.classList.remove('hidden');
-            batchProgressSection.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                     <h2 class="text-xl font-semibold text-slate-800">Analyse en cours...</h2>
-                     <button id="batch-done-btn" class="hidden rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Terminé</button>
-                </div>
-                <div id="progress-cards-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>
-            `;
             
-            document.getElementById('batch-done-btn').onclick = () => {
-                uploadSection.classList.remove('hidden');
-                batchProgressSection.classList.add('hidden');
-            };
-            
-            const container = document.getElementById('progress-cards-container');
-
-            const filePromises = Array.from(files).map(file => {
+            const container = getEl('progress-cards-container');
+            Array.from(files).forEach(file => {
                 const card = document.createElement('div');
-                card.className = "p-3 bg-slate-100 rounded-lg flex items-center space-x-4 transition-all duration-300";
-                card.innerHTML = `
-                    <div class="flex-shrink-0 h-12 w-12 bg-slate-200 rounded-md animate-pulse"></div>
-                    <div class="flex-grow min-w-0"><p class="font-medium text-sm text-slate-700 truncate">${file.name}</p><p class="text-xs text-slate-500 status-text">En attente...</p></div>
-                    <div class="flex-shrink-0 status-icon"><svg class="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
-                `;
-                container.appendChild(card);
-                return processFile(file, card);
+                card.className = "p-3 bg-slate-100 rounded-lg flex items-center space-x-4";
+                card.innerHTML = `<div class="flex-shrink-0 h-12 w-12 bg-slate-200 rounded-md animate-pulse"></div><div class="flex-grow min-w-0"><p class="font-medium text-sm text-slate-700 truncate">${file.name}</p><p class="text-xs text-slate-500 status-text">En attente...</p></div><div class="flex-shrink-0 status-icon"><svg class="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+                container.prepend(card);
+                processFile(file, card);
             });
-            
-            await Promise.allSettled(filePromises);
-            document.getElementById('batch-done-btn').classList.remove('hidden');
-            document.querySelector('#batch-progress-section h2').textContent = 'Analyse terminée';
         }
 
         async function processFile(file, card) {
             const updateCardStatus = (isSuccess, statusText, details) => {
                 card.querySelector('.status-text').textContent = statusText;
                 if (details) card.querySelector('.font-medium').textContent = details;
-                
                 const iconContainer = card.querySelector('.status-icon');
-                if (isSuccess === false) { // Error
-                    card.classList.remove('bg-slate-100');
-                    card.classList.add('bg-red-100');
-                    iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`;
-                } else if (isSuccess === true) { // Success
-                    card.classList.remove('bg-slate-100');
-                    card.classList.add('bg-green-100');
-                    iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-                }
-                // if isSuccess is null, spinner remains
+                if (isSuccess !== null) card.dataset.status = 'done';
+                if (isSuccess === false) { card.classList.replace('bg-slate-100', 'bg-red-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`; }
+                else if (isSuccess === true) { card.classList.replace('bg-slate-100', 'bg-green-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`; }
             };
-            
             try {
                 updateCardStatus(null, 'Lecture en cours...', file.name);
                 const base64 = await readFileAsDataURL(file);
-                
                 const thumb = await createThumbnail(base64, 64, 64);
                 card.querySelector('.flex-shrink-0').classList.remove('animate-pulse', 'bg-slate-200');
                 card.querySelector('.flex-shrink-0').innerHTML = `<img src="${thumb}" class="h-12 w-12 object-cover rounded-md">`;
-
                 updateCardStatus(null, 'Analyse par IA...', file.name);
-                const analysisResults = await analyzeImageApi(base64);
-                
-                if (!analysisResults || analysisResults.length === 0) throw new Error("Aucun objet détecté.");
-                
-                const itemData = analysisResults[0]; // Process first detected object
+                const analysisResults = await analyzeItemApi({ image: base64 });
+                const itemData = analysisResults[0];
                 const fullThumbnail = await createThumbnail(base64);
-
                 const newItem = {
-                    id: crypto.randomUUID(),
-                    name: itemData.objet,
-                    description: itemData.description,
-                    lowEstimate: parseFloat(itemData.estimation_basse),
-                    highEstimate: parseFloat(itemData.estimation_haute),
-                    status: 'À Vendre',
-                    listingURL: '',
-                    soldPrice: null,
-                    image: fullThumbnail,
-                    dateAdded: new Date().toISOString()
+                    id: crypto.randomUUID(), name: itemData.objet, description: itemData.description,
+                    lowEstimate: parseFloat(itemData.estimation_basse), highEstimate: parseFloat(itemData.estimation_haute),
+                    quantity: 1, status: 'À Vendre', soldPrice: null, images: [fullThumbnail],
+                    listingURLs: [], dateAdded: new Date().toISOString()
                 };
-                
                 addItem(newItem);
                 card.classList.add('cursor-pointer');
                 card.dataset.action = 'edit';
                 card.dataset.id = newItem.id;
                 updateCardStatus(true, `Ajouté à l'inventaire`, newItem.name);
-
-            } catch(err) {
-                console.error(`Failed to process ${file.name}:`, err);
-                updateCardStatus(false, err.message, file.name);
-            }
+            } catch(err) { console.error(`Failed to process ${file.name}:`, err); updateCardStatus(false, err.message, file.name); }
         }
         
-        async function analyzeImageApi(imageBase64) {
-            const systemPrompt = `Tu es un expert en estimation d'objets d'occasion. Ta mission est de fournir une liste d'objets identifiés dans une image avec une estimation de leur valeur. Tu dois répondre uniquement au format JSON valide.`;
-            const schema = {
-              type: "ARRAY",
-              items: {
-                type: "OBJECT",
-                properties: {
-                  "objet": { "type": "STRING" },
-                  "description": { "type": "STRING" },
-                  "estimation_basse": { "type": "NUMBER" },
-                  "estimation_haute": { "type": "NUMBER" }
-                },
-                "required": ["objet", "description", "estimation_basse", "estimation_haute"]
-              }
-            };
+        async function analyzeItemApi(details) {
+            const systemPrompt = `Tu es un expert en estimation d'objets d'occasion. Ta mission est de fournir une liste d'objets identifiés avec une estimation de leur valeur. Tu dois répondre uniquement au format JSON valide.`;
+            const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { "objet": { "type": "STRING" }, "description": { "type": "STRING" }, "estimation_basse": { "type": "NUMBER" }, "estimation_haute": { "type": "NUMBER" } }, required: ["objet", "description", "estimation_basse", "estimation_haute"] } };
             
-            const payload = {
-                contents: [{ parts: [ { text: "Identifie le principal objet sur cette image, donne une brève description, et une estimation de sa valeur de revente (basse et haute) en euros." }, { inlineData: { mimeType: "image/jpeg", data: imageBase64.split(',')[1] } } ] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
-            };
-
+            let parts;
+            if (details.image) {
+                const prompt = "Identifie le principal objet sur cette image. Rédige une description concise et factuelle pour une annonce de vente d'occasion (type Leboncoin). La description doit servir d'accroche : elle doit être directe, mentionner les points clés de l'objet (matériaux, marque, état apparent) et éviter un ton promotionnel ou de télé-achat. Ignore les détails non pertinents de l'arrière-plan. Fournis également une estimation de sa valeur de revente (basse et haute) en euros, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin.";
+                parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: details.image.split(',')[1] } }];
+            } else {
+                const prompt = `En te basant sur le nom, la description et la quantité de l'objet fournis, donne une nouvelle estimation de prix (basse et haute) pour sa revente, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin. L'estimation doit refléter la valeur du lot si la quantité est supérieure à 1. Dans ta réponse JSON, retourne le nom et la description qui t'ont été fournis sans les modifier.\n\nObjet: ${details.name}\nQuantité: ${details.quantity}\nDescription: ${details.description}`;
+                parts = [{ text: prompt }];
+            }
+            
+            const payload = { contents: [{ parts }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: schema } };
             const result = await makeApiCallWithRetry(payload);
             const candidate = result.candidates?.[0];
-            if (candidate && candidate.content?.parts?.[0]?.text) {
-                return JSON.parse(candidate.content.parts[0].text);
-            } else { 
-                throw new Error("La réponse de l'API est invalide ou vide."); 
-            }
+            if (candidate && candidate.content?.parts?.[0]?.text) return JSON.parse(candidate.content.parts[0].text);
+            throw new Error("La réponse de l'API est invalide ou vide.");
         }
         
         async function makeApiCallWithRetry(payload, maxRetries = 3) {
@@ -604,57 +643,78 @@
         }
 
         // --- INITIALIZATION & EVENT LISTENERS ---
-
         function init() {
-            // Tabs
             Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => navigate(key)));
             
-            // API Key
             saveApiKeyButton.addEventListener('click', () => {
                 localStorage.setItem('geminiApiKey', apiKeyInput.value);
                 keySavedMessage.classList.remove('hidden');
                 setTimeout(() => keySavedMessage.classList.add('hidden'), 3000);
                 updateUploadVisibility();
             });
-            apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
             
-            // Go to Config Button
             goToConfigBtn.addEventListener('click', () => navigate('config'));
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const apiKeyFromUrl = urlParams.get('apiKey');
+            if (apiKeyFromUrl) {
+                apiKeyInput.value = apiKeyFromUrl;
+                localStorage.setItem('geminiApiKey', apiKeyFromUrl);
+                history.replaceState(null, '', window.location.pathname); // Clean URL
+            } else {
+                 apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
+            }
             
-            // Drop Zone & File Input
-            const fileHandler = (e) => {
+            fileUpload.addEventListener('change', (e) => {
+                if (!apiKeyInput.value) { navigate('config'); return; }
+                handleFiles(e.target.files);
+            });
+            
+            // Global Dropzone
+            const globalDropOverlay = getEl('global-drop-overlay');
+            window.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                dropZone.classList.remove('drop-zone-active');
-                const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
-                handleFiles(files);
-            };
-            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone-active'); });
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-zone-active'));
-            dropZone.addEventListener('drop', fileHandler);
-            fileUpload.addEventListener('change', fileHandler);
+                if (!apiKeyInput.value) {
+                    globalDropOverlay.classList.add('bg-red-500');
+                    globalDropOverlay.classList.remove('bg-sky-500');
+                    globalDropOverlay.innerHTML = `<div class="flex items-center justify-center h-full pointer-events-none"><div class="text-center text-white"><svg class="mx-auto h-24 w-24" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg><p class="mt-4 text-2xl font-bold">Clé API requise</p><p class="mt-2 text-lg">Veuillez configurer votre clé API pour ajouter des fichiers.</p></div></div>`;
+                } else {
+                    globalDropOverlay.classList.add('bg-sky-500');
+                    globalDropOverlay.classList.remove('bg-red-500');
+                    globalDropOverlay.innerHTML = `<div class="flex items-center justify-center h-full pointer-events-none"><div class="text-center text-white"><svg class="mx-auto h-24 w-24" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg><p class="mt-4 text-2xl font-bold">Déposez les fichiers pour les analyser</p></div></div>`;
+                }
+                globalDropOverlay.classList.remove('hidden');
+            });
+
+            globalDropOverlay.addEventListener('dragover', (e) => e.preventDefault() );
+            globalDropOverlay.addEventListener('dragleave', (e) => { e.preventDefault(); globalDropOverlay.classList.add('hidden'); });
+            globalDropOverlay.addEventListener('drop', (e) => {
+                e.preventDefault();
+                globalDropOverlay.classList.add('hidden');
+                if (!apiKeyInput.value) return;
+                if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+                    if (currentItemIdInModal && window.addPhotosToModal) {
+                        window.addPhotosToModal(Array.from(e.dataTransfer.files));
+                    } else {
+                        handleFiles(e.dataTransfer.files);
+                    }
+                }
+            });
             
-            // Global listeners
             inventoryContainer.addEventListener('click', (e) => {
                 const actionTarget = e.target.closest('[data-action]');
                 if (!actionTarget) return;
-
                 const { action, id } = actionTarget.dataset;
-                if (action === 'delete') {
-                    e.stopPropagation(); 
-                    deleteItem(id);
-                } else if (action === 'edit') {
-                    const itemToEdit = inventory.find(i => i.id === id);
-                    if(itemToEdit) showEditModal(itemToEdit);
-                }
+                const item = inventory.find(i => i.id === id);
+                if (!item) return;
+                if (action === 'edit') showEditModal(item);
             });
 
             batchProgressSection.addEventListener('click', (e) => {
                 const actionTarget = e.target.closest('[data-action="edit"]');
                 if (!actionTarget) return;
-
-                const { id } = actionTarget.dataset;
-                const itemToEdit = inventory.find(i => i.id === id);
-                if(itemToEdit) showEditModal(itemToEdit);
+                const item = inventory.find(i => i.id === actionTarget.dataset.id);
+                if(item) showEditModal(item);
             });
 
             loadInventory();
