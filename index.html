@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistant Inventaire & Estimation</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -115,6 +117,19 @@
                         <p class="mt-2 text-xs text-slate-500">Obtenez votre clé sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="font-medium text-blue-600 hover:text-blue-500">Google AI Studio</a>. La clé est stockée dans votre navigateur.</p>
                         <p id="key-saved-message" class="mt-2 text-xs text-green-600 font-medium hidden">Clé API sauvegardée !</p>
                     </div>
+
+                    <div class="border-t border-slate-200 pt-8">
+                         <h2 class="text-xl font-semibold mb-3 text-slate-800">Gestion des Données</h2>
+                         <p class="text-sm text-slate-600 mb-4">Sauvegardez votre inventaire dans un fichier pour le transférer sur un autre appareil ou le conserver en sécurité.</p>
+                         <div class="flex flex-col sm:flex-row gap-4">
+                            <button id="export-data-btn" type="button" class="flex-1 rounded-md bg-slate-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-500">Exporter les données</button>
+                            <label for="import-data-input" class="flex-1 text-center cursor-pointer rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                Importer des données
+                                <input id="import-data-input" type="file" class="sr-only" accept=".zip">
+                            </label>
+                         </div>
+                    </div>
+
                      <div class="border-t border-slate-200 pt-8">
                         <h2 class="text-xl font-semibold mb-3 text-slate-800">Zone de Danger</h2>
                         <p class="text-sm text-slate-600">Cette action supprimera définitivement toutes les données de l'application (inventaire et clé API) de votre navigateur. Ceci est utile si l'application ne fonctionne pas correctement ou après une mise à jour.</p>
@@ -149,6 +164,8 @@
         const saveApiKeyButton = getEl('save-api-key');
         const keySavedMessage = getEl('key-saved-message');
         const resetStorageBtn = getEl('reset-storage-btn');
+        const exportDataBtn = getEl('export-data-btn');
+        const importDataInput = getEl('import-data-input');
         const apiKeyPrompt = getEl('api-key-prompt');
         const goToConfigBtn = getEl('go-to-config-btn');
         const uploadInterface = getEl('upload-interface');
@@ -188,7 +205,6 @@
         function loadInventory() {
             const savedInventory = localStorage.getItem('inventory');
             inventory = savedInventory ? JSON.parse(savedInventory) : [];
-            // Data migration for listingURL -> listingURLs
             inventory.forEach(item => {
                 if (item.listingURL && !item.listingURLs) {
                     item.listingURLs = [item.listingURL];
@@ -229,7 +245,56 @@
             closeModal();
         }
 
+        // --- DATA MANAGEMENT ---
+        async function exportData() {
+            const inventoryData = localStorage.getItem('inventory');
+            if (!inventoryData) {
+                alert("Il n'y a rien à exporter.");
+                return;
+            }
+            const zip = new JSZip();
+            zip.file("inventory.json", inventoryData);
+
+            zip.generateAsync({ type: "blob" })
+                .then(function(content) {
+                    saveAs(content, "obsek_backup.zip");
+                });
+        }
+
+        async function importData(file) {
+            if (!file) return;
+
+            const zip = await JSZip.loadAsync(file);
+            const inventoryFile = zip.file("inventory.json");
+
+            if (!inventoryFile) {
+                alert("Fichier de sauvegarde invalide : inventory.json manquant.");
+                return;
+            }
+
+            const newInventoryData = await inventoryFile.async("string");
+
+            const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Importer des données</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir importer ces données ? L'inventaire actuel sera écrasé. Cette action est irréversible.</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-import" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Importer et écraser</button><button id="modal-cancel-import" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
+            openModal(confirmContent);
+
+            getEl('modal-confirm-import').onclick = () => {
+                try {
+                    // Basic validation to ensure it's an array
+                    const parsedData = JSON.parse(newInventoryData);
+                    if (!Array.isArray(parsedData)) throw new Error("Invalid format");
+                    
+                    localStorage.setItem('inventory', newInventoryData);
+                    location.reload();
+                } catch (e) {
+                    alert("Erreur lors de l'importation. Le fichier est peut-être corrompu ou au mauvais format.");
+                    closeModal();
+                }
+            };
+            getEl('modal-cancel-import').onclick = closeModal;
+        }
+
         // --- RENDER FUNCTIONS ---
+        // ... (render functions are unchanged) ...
         function renderDashboard() {
             inventoryContainer.innerHTML = '';
             inventory.length === 0 ? inventoryEmptyState.classList.remove('hidden') : inventoryEmptyState.classList.add('hidden');
@@ -237,7 +302,6 @@
             inventory.forEach(item => inventoryContainer.appendChild(createItemCard(item)));
             updateSummary();
         }
-
         function updateSummary() {
             summary.totalItems.textContent = inventory.length;
             const toSellValue = inventory.filter(i => i.status === 'À Vendre').reduce((acc, i) => acc + ((i.lowEstimate || 0) * (i.quantity || 1)), 0);
@@ -245,7 +309,6 @@
             summary.toSellValue.textContent = `${toSellValue.toFixed(2)} €`;
             summary.soldValue.textContent = `${soldValue.toFixed(2)} €`;
         }
-
         function createItemCard(item) {
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden";
@@ -270,7 +333,8 @@
         }
         
         // --- MODAL ---
-        function openModal(content) {
+        // ... (modal functions are unchanged) ...
+         function openModal(content) {
             document.body.classList.add('overflow-hidden');
             modalPanel.innerHTML = content;
             modal.classList.remove('hidden');
@@ -282,7 +346,6 @@
             currentItemIdInModal = null;
             initialModalState = '';
         }
-
         function collectItemDataFromModal() {
             if (!getEl('modal-edit-name')) return null;
             const listingURLs = Array.from(getEl('listing-urls-container').querySelectorAll('span')).map(span => span.textContent);
@@ -297,7 +360,6 @@
                 listingURLs: listingURLs
             };
         }
-
         function showEditModal(item) {
             currentItemIdInModal = item.id;
             const content = `
@@ -364,293 +426,48 @@
                     </div>
                 </div>`;
             openModal(content);
-
             let currentItemState = { ...item, listingURLs: [...item.listingURLs], images: [...item.images] };
-
             const mainImage = getEl('modal-main-image');
             const thumbnailsDiv = getEl('modal-thumbnails');
             const addPhotosInput = getEl('modal-add-photos-input');
             const listingUrlsContainer = getEl('listing-urls-container');
             const addUrlBtn = getEl('modal-add-url-btn');
             const urlInput = getEl('modal-edit-url-input');
-
-            // --- PHOTO MANAGEMENT ---
-            const renderThumbnails = () => {
-                thumbnailsDiv.innerHTML = '';
-                currentItemState.images.forEach((imgSrc, index) => {
-                    const thumbContainer = document.createElement('div');
-                    thumbContainer.className = 'thumbnail-container';
-                    thumbContainer.innerHTML = `<img src="${imgSrc}" class="h-16 w-16 object-cover rounded-md cursor-pointer border-2 ${imgSrc === mainImage.src ? 'border-blue-500' : 'border-transparent'}"><div class="thumbnail-delete" data-index="${index}">&#x2715;</div>`;
-                    thumbnailsDiv.appendChild(thumbContainer);
-                });
-            };
-            
-            thumbnailsDiv.addEventListener('click', e => {
-                if (e.target.tagName === 'IMG') { mainImage.src = e.target.src; renderThumbnails(); }
-                if (e.target.dataset.index) {
-                    if (currentItemState.images.length <= 1) { alert("Vous ne pouvez pas supprimer la dernière photo."); return; }
-                    const indexToRemove = parseInt(e.target.dataset.index, 10);
-                    const removedSrc = currentItemState.images[indexToRemove];
-                    currentItemState.images.splice(indexToRemove, 1);
-                    if (mainImage.src === removedSrc) mainImage.src = currentItemState.images[0];
-                    renderThumbnails();
-                }
-            });
-
-            const addPhotos = async (files) => {
-                 for (const file of files) {
-                    const base64 = await readFileAsDataURL(file);
-                    const thumb = await createThumbnail(base64);
-                    currentItemState.images.push(thumb);
-                }
-                renderThumbnails();
-            };
+            const renderThumbnails = () => { thumbnailsDiv.innerHTML = ''; currentItemState.images.forEach((imgSrc, index) => { const thumbContainer = document.createElement('div'); thumbContainer.className = 'thumbnail-container'; thumbContainer.innerHTML = `<img src="${imgSrc}" class="h-16 w-16 object-cover rounded-md cursor-pointer border-2 ${imgSrc === mainImage.src ? 'border-blue-500' : 'border-transparent'}"><div class="thumbnail-delete" data-index="${index}">&#x2715;</div>`; thumbnailsDiv.appendChild(thumbContainer); }); };
+            thumbnailsDiv.addEventListener('click', e => { if (e.target.tagName === 'IMG') { mainImage.src = e.target.src; renderThumbnails(); } if (e.target.dataset.index) { if (currentItemState.images.length <= 1) { alert("Vous ne pouvez pas supprimer la dernière photo."); return; } const indexToRemove = parseInt(e.target.dataset.index, 10); const removedSrc = currentItemState.images[indexToRemove]; currentItemState.images.splice(indexToRemove, 1); if (mainImage.src === removedSrc) mainImage.src = currentItemState.images[0]; renderThumbnails(); } });
+            const addPhotos = async (files) => { for (const file of files) { const base64 = await readFileAsDataURL(file); const thumb = await createThumbnail(base64); currentItemState.images.push(thumb); } renderThumbnails(); };
             addPhotosInput.addEventListener('change', (e) => addPhotos(Array.from(e.target.files)));
             window.addPhotosToModal = addPhotos;
             renderThumbnails();
-
-            // --- URL MANAGEMENT ---
-            const renderUrls = () => {
-                listingUrlsContainer.innerHTML = '';
-                currentItemState.listingURLs.forEach((url, index) => {
-                    const urlEl = document.createElement('div');
-                    urlEl.className = 'flex items-center justify-between bg-slate-100 px-2 py-1 rounded-md';
-                    urlEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline truncate pr-2"><span>${url}</span></a><button data-index="${index}" class="url-delete-btn text-slate-500 hover:text-slate-800">&times;</button>`;
-                    listingUrlsContainer.appendChild(urlEl);
-                });
-            };
-
-            addUrlBtn.addEventListener('click', () => {
-                if (urlInput.value.trim()) {
-                    try { new URL(urlInput.value.trim()); currentItemState.listingURLs.push(urlInput.value.trim()); urlInput.value = ''; renderUrls(); }
-                    catch(e) { alert("Veuillez entrer une URL valide."); }
-                }
-            });
-            listingUrlsContainer.addEventListener('click', e => {
-                if(e.target.classList.contains('url-delete-btn')) { currentItemState.listingURLs.splice(e.target.dataset.index, 1); renderUrls(); }
-            });
+            const renderUrls = () => { listingUrlsContainer.innerHTML = ''; currentItemState.listingURLs.forEach((url, index) => { const urlEl = document.createElement('div'); urlEl.className = 'flex items-center justify-between bg-slate-100 px-2 py-1 rounded-md'; urlEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline truncate pr-2"><span>${url}</span></a><button data-index="${index}" class="url-delete-btn text-slate-500 hover:text-slate-800">&times;</button>`; listingUrlsContainer.appendChild(urlEl); }); };
+            addUrlBtn.addEventListener('click', () => { if (urlInput.value.trim()) { try { new URL(urlInput.value.trim()); currentItemState.listingURLs.push(urlInput.value.trim()); urlInput.value = ''; renderUrls(); } catch(e) { alert("Veuillez entrer une URL valide."); } } });
+            listingUrlsContainer.addEventListener('click', e => { if(e.target.classList.contains('url-delete-btn')) { currentItemState.listingURLs.splice(e.target.dataset.index, 1); renderUrls(); } });
             renderUrls();
-
-            // --- OTHER EVENT LISTENERS ---
             const statusSelect = getEl('modal-edit-status');
             const soldPriceContainer = getEl('modal-edit-sold-price-container');
             statusSelect.addEventListener('change', (e) => soldPriceContainer.classList.toggle('hidden', e.target.value !== 'Vendu'));
-            
-            getEl('modal-delete-item').onclick = () => {
-                closeModal(); // Close current modal before opening confirm
-                setTimeout(() => { // Allow UI to update
-                    const itemToDelete = inventory.find(i => i.id === item.id);
-                    if (!itemToDelete) return;
-                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'objet</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
-                    openModal(confirmContent);
-                    getEl('modal-confirm-delete').onclick = () => deleteItem(item.id);
-                    getEl('modal-cancel-delete').onclick = closeModal;
-                }, 100);
-            };
-
-            const attemptToClose = () => {
-                const currentData = collectItemDataFromModal();
-                if (JSON.stringify(currentData) !== initialModalState) {
-                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
-                    openModal(confirmContent);
-                    getEl('modal-confirm-close').onclick = closeModal;
-                    getEl('modal-cancel-close').onclick = () => showEditModal(item);
-                } else {
-                    closeModal();
-                }
-            };
+            getEl('modal-delete-item').onclick = () => { closeModal(); setTimeout(() => { const itemToDelete = inventory.find(i => i.id === item.id); if (!itemToDelete) return; const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'objet</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; openModal(confirmContent); getEl('modal-confirm-delete').onclick = () => deleteItem(item.id); getEl('modal-cancel-delete').onclick = closeModal; }, 100); };
+            const attemptToClose = () => { const currentData = collectItemDataFromModal(); if (JSON.stringify(currentData) !== initialModalState) { const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; openModal(confirmContent); getEl('modal-confirm-close').onclick = closeModal; getEl('modal-cancel-close').onclick = () => showEditModal(item); } else { closeModal(); } };
             getEl('modal-cancel-edit').onclick = attemptToClose;
-            
             const modalContainer = getEl('modal-container');
-            modalContainer.addEventListener('click', (e) => {
-                if (e.target === modalContainer) {
-                    attemptToClose();
-                }
-            });
-            
-            const searchHandler = (urlTemplate) => {
-                const itemName = getEl('modal-edit-name').value;
-                const url = urlTemplate.replace('{query}', encodeURIComponent(itemName));
-                window.open(url, '_blank');
-            };
-            
+            modalContainer.addEventListener('click', (e) => { if (e.target === modalContainer) { attemptToClose(); } });
+            const searchHandler = (urlTemplate) => { const itemName = getEl('modal-edit-name').value; const url = urlTemplate.replace('{query}', encodeURIComponent(itemName)); window.open(url, '_blank'); };
             getEl('modal-search-google').onclick = () => searchHandler('https://www.google.com/search?q={query}&tbm=shop');
             getEl('modal-search-leboncoin').onclick = () => searchHandler('https://www.leboncoin.fr/recherche?text={query}');
-            
-            // Re-analyzes the main image in the modal to get new data.
-            getEl('modal-reanalyze-image').onclick = async () => {
-                const btn = getEl('modal-reanalyze-image');
-                btn.disabled = true;
-                btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-                try {
-                    const mainImageSrc = getEl('modal-main-image').src;
-                    const analysisResult = await analyzeItemApi({ image: mainImageSrc });
-                    const analyzedData = analysisResult[0];
-                    getEl('modal-edit-name').value = analyzedData.objet;
-                    getEl('modal-edit-description').value = analyzedData.description;
-                    getEl('modal-edit-low').value = analyzedData.estimation_basse;
-                    getEl('modal-edit-high').value = analyzedData.estimation_haute;
-                } catch(err) { 
-                    console.error("Image re-analysis failed:", err); 
-                    alert("L'analyse de l'image a échoué.");
-                } finally { 
-                    btn.disabled = false; 
-                    btn.textContent = "Analyser l'image"; 
-                }
-            };
-
-            // Updates the price estimation based on the text fields in the modal.
-            getEl('modal-update-estimation').onclick = async () => {
-                const btn = getEl('modal-update-estimation');
-                btn.disabled = true;
-                btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-                try {
-                    const analysisResult = await analyzeItemApi({ 
-                        name: getEl('modal-edit-name').value, 
-                        description: getEl('modal-edit-description').value, 
-                        quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1 
-                    });
-                     const analyzedData = analysisResult[0];
-                    // The AI might suggest refined text, so we update it all.
-                    getEl('modal-edit-name').value = analyzedData.objet;
-                    getEl('modal-edit-description').value = analyzedData.description;
-                    getEl('modal-edit-low').value = analyzedData.estimation_basse;
-                    getEl('modal-edit-high').value = analyzedData.estimation_haute;
-                } catch(err) { 
-                    console.error("Text-based estimation failed:", err); 
-                    alert("L'actualisation de l'estimation a échoué.");
-                } finally { 
-                    btn.disabled = false; 
-                    btn.textContent = "Actualiser l'estimation"; 
-                }
-            };
-            
-            getEl('modal-save-edit').onclick = () => {
-                const finalData = collectItemDataFromModal();
-                const updatedData = { ...finalData, images: currentItemState.images };
-                updateItem(item.id, updatedData);
-                closeModal();
-            };
-
+            getEl('modal-reanalyze-image').onclick = async () => { const btn = getEl('modal-reanalyze-image'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const mainImageSrc = getEl('modal-main-image').src; const analysisResult = await analyzeItemApi({ image: mainImageSrc }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Image re-analysis failed:", err); alert("L'analyse de l'image a échoué."); } finally { btn.disabled = false; btn.textContent = "Analyser l'image"; } };
+            getEl('modal-update-estimation').onclick = async () => { const btn = getEl('modal-update-estimation'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const analysisResult = await analyzeItemApi({ name: getEl('modal-edit-name').value, description: getEl('modal-edit-description').value, quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1 }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Text-based estimation failed:", err); alert("L'actualisation de l'estimation a échoué."); } finally { btn.disabled = false; btn.textContent = "Actualiser l'estimation"; } };
+            getEl('modal-save-edit').onclick = () => { const finalData = collectItemDataFromModal(); const updatedData = { ...finalData, images: currentItemState.images }; updateItem(item.id, updatedData); closeModal(); };
             const initialData = collectItemDataFromModal();
             initialModalState = JSON.stringify(initialData);
         }
 
         // --- API & FILE HANDLING ---
         function readFileAsDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); }
-        
-        function createThumbnail(base64, maxWidth = 400, maxHeight = 400) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.src = base64;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let { width, height } = img;
-                    if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } }
-                    else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7));
-                };
-                img.onerror = reject;
-            });
-        }
-
-        async function handleFiles(files) {
-            if (files.length === 0 || !apiKeyInput.value) return;
-
-            if (batchProgressSection.classList.contains('hidden')) {
-                batchProgressSection.classList.remove('hidden');
-                batchProgressSection.innerHTML = `<div class="flex justify-between items-center mb-4 mt-6 border-t pt-6"><h2 class="text-xl font-semibold text-slate-800">Progression des analyses</h2><button id="batch-clear-btn" class="rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-300">Effacer terminés</button></div><div id="progress-cards-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>`;
-                getEl('batch-clear-btn').onclick = () => {
-                    getEl('progress-cards-container').querySelectorAll('[data-status="done"]').forEach(card => card.remove());
-                    if (getEl('progress-cards-container').childElementCount === 0) batchProgressSection.classList.add('hidden');
-                };
-            }
-            
-            const container = getEl('progress-cards-container');
-            Array.from(files).forEach(file => {
-                const card = document.createElement('div');
-                card.className = "p-3 bg-slate-100 rounded-lg flex items-center space-x-4";
-                card.innerHTML = `<div class="flex-shrink-0 h-12 w-12 bg-slate-200 rounded-md animate-pulse"></div><div class="flex-grow min-w-0"><p class="font-medium text-sm text-slate-700 truncate">${file.name}</p><p class="text-xs text-slate-500 status-text">En attente...</p></div><div class="flex-shrink-0 status-icon"><svg class="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
-                container.prepend(card);
-                processFile(file, card);
-            });
-        }
-
-        async function processFile(file, card) {
-            const updateCardStatus = (isSuccess, statusText, details) => {
-                card.querySelector('.status-text').textContent = statusText;
-                if (details) card.querySelector('.font-medium').textContent = details;
-                const iconContainer = card.querySelector('.status-icon');
-                if (isSuccess !== null) card.dataset.status = 'done';
-                if (isSuccess === false) { card.classList.replace('bg-slate-100', 'bg-red-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`; }
-                else if (isSuccess === true) { card.classList.replace('bg-slate-100', 'bg-green-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`; }
-            };
-            try {
-                updateCardStatus(null, 'Lecture en cours...', file.name);
-                const base64 = await readFileAsDataURL(file);
-                const thumb = await createThumbnail(base64, 64, 64);
-                card.querySelector('.flex-shrink-0').classList.remove('animate-pulse', 'bg-slate-200');
-                card.querySelector('.flex-shrink-0').innerHTML = `<img src="${thumb}" class="h-12 w-12 object-cover rounded-md">`;
-                updateCardStatus(null, 'Analyse par IA...', file.name);
-                const analysisResults = await analyzeItemApi({ image: base64 });
-                const itemData = analysisResults[0];
-                const fullThumbnail = await createThumbnail(base64);
-                const newItem = {
-                    id: crypto.randomUUID(), name: itemData.objet, description: itemData.description,
-                    lowEstimate: parseFloat(itemData.estimation_basse), highEstimate: parseFloat(itemData.estimation_haute),
-                    quantity: 1, status: 'À Vendre', soldPrice: null, images: [fullThumbnail],
-                    listingURLs: [], dateAdded: new Date().toISOString()
-                };
-                addItem(newItem);
-                card.classList.add('cursor-pointer');
-                card.dataset.action = 'edit';
-                card.dataset.id = newItem.id;
-                updateCardStatus(true, `Ajouté à l'inventaire`, newItem.name);
-            } catch(err) { console.error(`Failed to process ${file.name}:`, err); updateCardStatus(false, err.message, file.name); }
-        }
-        
-        async function analyzeItemApi(details) {
-            const systemPrompt = `Tu es un expert en estimation d'objets d'occasion. Ta mission est de fournir une liste d'objets identifiés avec une estimation de leur valeur. Tu dois répondre uniquement au format JSON valide.`;
-            const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { "objet": { "type": "STRING" }, "description": { "type": "STRING" }, "estimation_basse": { "type": "NUMBER" }, "estimation_haute": { "type": "NUMBER" } }, required: ["objet", "description", "estimation_basse", "estimation_haute"] } };
-            
-            let parts;
-            if (details.image) {
-                const prompt = "Identifie le principal objet sur cette image. Rédige une description concise et factuelle pour une annonce de vente d'occasion (type Leboncoin). La description doit servir d'accroche : elle doit être directe, mentionner les points clés de l'objet (matériaux, marque, état apparent) et éviter un ton promotionnel ou de télé-achat. Ignore les détails non pertinents de l'arrière-plan. Fournis également une estimation de sa valeur de revente (basse et haute) en euros, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin.";
-                parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: details.image.split(',')[1] } }];
-            } else {
-                const prompt = `En te basant sur le nom, la description et la quantité de l'objet fournis, donne une nouvelle estimation de prix (basse et haute) pour sa revente, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin. L'estimation doit refléter la valeur du lot si la quantité est supérieure à 1. Dans ta réponse JSON, retourne le nom et la description qui t'ont été fournis sans les modifier.\n\nObjet: ${details.name}\nQuantité: ${details.quantity}\nDescription: ${details.description}`;
-                parts = [{ text: prompt }];
-            }
-            
-            const payload = { contents: [{ parts }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: schema } };
-            const result = await makeApiCallWithRetry(payload);
-            const candidate = result.candidates?.[0];
-            if (candidate && candidate.content?.parts?.[0]?.text) return JSON.parse(candidate.content.parts[0].text);
-            throw new Error("La réponse de l'API est invalide ou vide.");
-        }
-        
-        async function makeApiCallWithRetry(payload, maxRetries = 3) {
-            const apiKey = apiKeyInput.value;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    if (!response.ok) {
-                        const errorBody = await response.text();
-                        console.error(`API Error (attempt ${attempt + 1}):`, response.status, errorBody);
-                        if (response.status === 429 || response.status >= 500) { throw new Error(`API error ${response.status}`); }
-                        else { throw new Error(`API error: ${response.status} ${response.statusText}. ${errorBody}`); }
-                    }
-                    return await response.json();
-                } catch (error) {
-                    if (attempt >= maxRetries - 1) throw error;
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
-                }
-            }
-        }
+        function createThumbnail(base64, maxWidth = 400, maxHeight = 400) { return new Promise((resolve, reject) => { const img = new Image(); img.src = base64; img.onload = () => { const canvas = document.createElement('canvas'); let { width, height } = img; if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } } else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.onerror = reject; }); }
+        async function handleFiles(files) { if (files.length === 0 || !apiKeyInput.value) return; if (batchProgressSection.classList.contains('hidden')) { batchProgressSection.classList.remove('hidden'); batchProgressSection.innerHTML = `<div class="flex justify-between items-center mb-4 mt-6 border-t pt-6"><h2 class="text-xl font-semibold text-slate-800">Progression des analyses</h2><button id="batch-clear-btn" class="rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-300">Effacer terminés</button></div><div id="progress-cards-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>`; getEl('batch-clear-btn').onclick = () => { getEl('progress-cards-container').querySelectorAll('[data-status="done"]').forEach(card => card.remove()); if (getEl('progress-cards-container').childElementCount === 0) batchProgressSection.classList.add('hidden'); }; } const container = getEl('progress-cards-container'); Array.from(files).forEach(file => { const card = document.createElement('div'); card.className = "p-3 bg-slate-100 rounded-lg flex items-center space-x-4"; card.innerHTML = `<div class="flex-shrink-0 h-12 w-12 bg-slate-200 rounded-md animate-pulse"></div><div class="flex-grow min-w-0"><p class="font-medium text-sm text-slate-700 truncate">${file.name}</p><p class="text-xs text-slate-500 status-text">En attente...</p></div><div class="flex-shrink-0 status-icon"><svg class="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`; container.prepend(card); processFile(file, card); }); }
+        async function processFile(file, card) { const updateCardStatus = (isSuccess, statusText, details) => { card.querySelector('.status-text').textContent = statusText; if (details) card.querySelector('.font-medium').textContent = details; const iconContainer = card.querySelector('.status-icon'); if (isSuccess !== null) card.dataset.status = 'done'; if (isSuccess === false) { card.classList.replace('bg-slate-100', 'bg-red-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`; } else if (isSuccess === true) { card.classList.replace('bg-slate-100', 'bg-green-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`; } }; try { updateCardStatus(null, 'Lecture en cours...', file.name); const base64 = await readFileAsDataURL(file); const thumb = await createThumbnail(base64, 64, 64); card.querySelector('.flex-shrink-0').classList.remove('animate-pulse', 'bg-slate-200'); card.querySelector('.flex-shrink-0').innerHTML = `<img src="${thumb}" class="h-12 w-12 object-cover rounded-md">`; updateCardStatus(null, 'Analyse par IA...', file.name); const analysisResults = await analyzeItemApi({ image: base64 }); const itemData = analysisResults[0]; const fullThumbnail = await createThumbnail(base64); const newItem = { id: crypto.randomUUID(), name: itemData.objet, description: itemData.description, lowEstimate: parseFloat(itemData.estimation_basse), highEstimate: parseFloat(itemData.estimation_haute), quantity: 1, status: 'À Vendre', soldPrice: null, images: [fullThumbnail], listingURLs: [], dateAdded: new Date().toISOString() }; addItem(newItem); card.classList.add('cursor-pointer'); card.dataset.action = 'edit'; card.dataset.id = newItem.id; updateCardStatus(true, `Ajouté à l'inventaire`, newItem.name); } catch(err) { console.error(`Failed to process ${file.name}:`, err); updateCardStatus(false, err.message, file.name); } }
+        async function analyzeItemApi(details) { const systemPrompt = `Tu es un expert en estimation d'objets d'occasion. Ta mission est de fournir une liste d'objets identifiés avec une estimation de leur valeur. Tu dois répondre uniquement au format JSON valide.`; const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { "objet": { "type": "STRING" }, "description": { "type": "STRING" }, "estimation_basse": { "type": "NUMBER" }, "estimation_haute": { "type": "NUMBER" } }, required: ["objet", "description", "estimation_basse", "estimation_haute"] } }; let parts; if (details.image) { const prompt = "Identifie le principal objet sur cette image. Rédige une description concise et factuelle pour une annonce de vente d'occasion (type Leboncoin). La description doit servir d'accroche : elle doit être directe, mentionner les points clés de l'objet (matériaux, marque, état apparent) et éviter un ton promotionnel ou de télé-achat. Ignore les détails non pertinents de l'arrière-plan. Fournis également une estimation de sa valeur de revente (basse et haute) en euros, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin."; parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: details.image.split(',')[1] } }]; } else { const prompt = `En te basant sur le nom, la description et la quantité de l'objet fournis, donne une nouvelle estimation de prix (basse et haute) pour sa revente, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin. L'estimation doit refléter la valeur du lot si la quantité est supérieure à 1. Dans ta réponse JSON, retourne le nom et la description qui t'ont été fournis sans les modifier.\n\nObjet: ${details.name}\nQuantité: ${details.quantity}\nDescription: ${details.description}`; parts = [{ text: prompt }]; } const payload = { contents: [{ parts }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: schema } }; const result = await makeApiCallWithRetry(payload); const candidate = result.candidates?.[0]; if (candidate && candidate.content?.parts?.[0]?.text) return JSON.parse(candidate.content.parts[0].text); throw new Error("La réponse de l'API est invalide ou vide."); }
+        async function makeApiCallWithRetry(payload, maxRetries = 3) { const apiKey = apiKeyInput.value; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`; for (let attempt = 0; attempt < maxRetries; attempt++) { try { const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) { const errorBody = await response.text(); console.error(`API Error (attempt ${attempt + 1}):`, response.status, errorBody); if (response.status === 429 || response.status >= 500) { throw new Error(`API error ${response.status}`); } else { throw new Error(`API error: ${response.status} ${response.statusText}. ${errorBody}`); } } return await response.json(); } catch (error) { if (attempt >= maxRetries - 1) throw error; await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); } } }
 
         // --- INITIALIZATION & EVENT LISTENERS ---
         function init() {
@@ -746,4 +563,3 @@
     </script>
 </body>
 </html>
-
