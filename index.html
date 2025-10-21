@@ -489,6 +489,9 @@
                 };
                 getEl('modal-cancel-reset').onclick = closeModal;
             });
+
+            exportDataBtn.addEventListener('click', exportData);
+            importDataInput.addEventListener('change', (e) => importData(e.target.files[0]));
             
             goToConfigBtn.addEventListener('click', () => navigate('config'));
 
