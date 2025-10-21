@@ -18,13 +18,13 @@ L'application est contenue dans un seul et unique fichier HTML (par exemple, `in
 ## 3. Installation et Lancement
 
 1. **Prérequis** : Un navigateur web moderne (Chrome, Firefox, Safari, etc.).
-2. **Lancement** : Pour que les appels à l'API de Google fonctionnent, le fichier HTML doit être servi via un serveur web. Il ne fonctionnera pas correctement s'il est ouvert directement via le protocole file://.
-  - En ligne (recommandé) : Déployez simplement le fichier (nommé `index.html`) sur un service comme GitHub Pages ou Netlify.
-  - En local : Ouvrez un terminal dans le dossier où se trouve le fichier et lancez l'une des commandes suivantes :
-    - **Avec Python 3 :** `python -m http.server`
-    - **Avec Node.js (si vous avez `npx`)** : `npx serve`
+2. **Lancement** : Pour que les appels à l'API de Google fonctionnent, le fichier HTML doit être servi via un serveur web. Il ne fonctionnera pas correctement s'il est ouvert directement via le protocole `file://`.
+    - En ligne (recommandé) : Déployez simplement le fichier (nommé `index.html`) sur un service comme GitHub Pages ou Netlify.
+    - En local : Ouvrez un terminal dans le dossier où se trouve le fichier et lancez l'une des commandes suivantes :
+      - **Avec Python 3 :** `python -m http.server`
+      - **Avec Node.js (si vous avez `npx`)** : `npx serve`
   
-    Ensuite, ouvrez votre navigateur à l'adresse indiquée (généralement `http://localhost:8000` ou `http://localhost:3000`).
+      Ensuite, ouvrez votre navigateur à l'adresse indiquée (généralement `http://localhost:8000` ou `http://localhost:3000`).
 
 ## 4. Configuration
 
@@ -52,7 +52,7 @@ C'est très utile pour créer un raccourci sur l'écran d'accueil de votre tél�
 
 Lors du premier chargement, l'application détectera ce paramètre, sauvegardera la clé dans le `localStorage` et nettoiera l'URL pour des raisons de sécurité.
 
-### 5. Gestion des Données (Export / Import)
+## 5. Gestion des Données (Export / Import)
    
 Pour sauvegarder votre inventaire ou le transférer entre plusieurs appareils (par exemple, de votre téléphone à votre PC),
 une fonctionnalité d'export/import est disponible dans l'onglet **Configuration"**.
