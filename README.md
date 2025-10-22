@@ -8,23 +8,31 @@ Cette application est conçue pour être ultra-légère et fonctionner entièrem
 
 ## 2. Architecture
 
-L'application est contenue dans **un seul et unique fichier HTML** (par exemple, `index.html`). Son architecture repose sur les principes suivants :
+L'application repose sur un **fichier HTML unique** (`index.html`) qui contient tout le code (HTML, CSS, JavaScript).
 
-* **100% Côté Client :** Tout le code (HTML, CSS, JavaScript) est dans un seul fichier.
 * **Stockage Local Avancé :** Toutes les données de l'inventaire, y compris les **images originales** et les miniatures, sont sauvegardées dans **IndexedDB**. Cette approche est utilisée en lieu et place de `localStorage` pour dépasser la limite de stockage de 5-10 Mo et permettre la sauvegarde d'un grand nombre d'images en haute résolution.
 * **Serverless :** L'application ne nécessite aucun serveur pour fonctionner, à l'exception des appels à l'API de Google Gemini.
+
+### Fichiers de support pour l'expérience PWA
+
+Pour permettre une expérience "plein écran" (standalone) et une utilisation hors-ligne, deux fichiers supplémentaires sont nécessaires :
+
+1.  **`manifest.json`** : Ce fichier décrit l'application au navigateur. Il permet de définir le nom, la couleur du thème (`#596878`) et l'icône à utiliser lorsque vous **ajoutez l'application à votre écran d'accueil**.
+2.  **`sw.js` (Service Worker)** : C'est un petit script qui s'exécute en arrière-plan. Il est **exigé par les navigateurs** (notamment Chrome) pour débloquer le mode `standalone`. Son rôle ici est de mettre en cache les ressources de base de l'application (le fichier HTML, les scripts CDN) pour qu'elle puisse se charger même sans connexion réseau.
+
+**Note :** L'application principale reste le fichier `index.html`. Le `manifest.json` et le `sw.js` ne sont que des "fichiers de configuration" pour améliorer l'intégration mobile.
 
 ## 3. Installation et Lancement
 
 1.  **Prérequis :** Un navigateur web moderne (Chrome, Firefox, Safari, etc.).
-2.  **Lancement :** Pour que les appels à l'API de Google fonctionnent, le fichier HTML doit être servi via un serveur web. Il ne fonctionnera pas correctement s'il est ouvert directement via le protocole `file://`.
+2.  **Lancement :** Pour que les appels à l'API de Google et le Service Worker fonctionnent, les fichiers doivent être servis via un serveur web (protocole `https://` ou `http://localhost`). Ils ne fonctionneront pas correctement si vous ouvrez `index.html` directement via le protocole `file://`.
 
-    * **En ligne (recommandé) :** Déployez simplement le fichier (nommé `index.html`) sur un service comme [GitHub Pages](https://pages.github.com/) ou [Netlify](https://www.netlify.com/).
-    * **En local :** Ouvrez un terminal dans le dossier où se trouve le fichier et lancez l'une des commandes suivantes :
+    * **En ligne (recommandé) :** Déployez les trois fichiers (`index.html`, `manifest.json`, `sw.js`) sur un service comme [GitHub Pages](https://pages.github.com/) ou [Netlify](https://www.netlify.com/).
+    * **En local :** Ouvrez un terminal dans le dossier où se trouvent les fichiers et lancez l'une des commandes suivantes :
         * **Avec Python 3 :** `python -m http.server`
         * **Avec Node.js (si vous avez `npx`) :** `npx serve`
 
-    Ensuite, ouvrez votre navigateur à l'adresse indiquée (généralement `http://localhost:8000` ou `http://localhost:3000`).
+    Ensuite, ouvrez votre navigateur à l'adresse indiquée (généralement `http://localhost:8000`).
 
 ## 4. Configuration
 
