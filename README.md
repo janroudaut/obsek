@@ -11,7 +11,7 @@ Cette application est conçue pour être ultra-légère et fonctionner entièrem
 L'application est contenue dans **un seul et unique fichier HTML** (par exemple, `index.html`). Son architecture repose sur les principes suivants :
 
 * **100% Côté Client :** Tout le code (HTML, CSS, JavaScript) est dans un seul fichier.
-* **Stockage Local :** Toutes les données, y compris les images (sous forme de miniatures encodées en Base64), sont sauvegardées dans le `localStorage` du navigateur.
+* **Stockage Local Avancé :** Toutes les données de l'inventaire, y compris les **images originales** et les miniatures, sont sauvegardées dans **IndexedDB**. Cette approche est utilisée en lieu et place de `localStorage` pour dépasser la limite de stockage de 5-10 Mo et permettre la sauvegarde d'un grand nombre d'images en haute résolution.
 * **Serverless :** L'application ne nécessite aucun serveur pour fonctionner, à l'exception des appels à l'API de Google Gemini.
 
 ## 3. Installation et Lancement
@@ -36,7 +36,7 @@ L'application utilise l'API de Google Gemini pour l'analyse des images. Vous dev
 * **Configuration dans l'application :**
     1.  Allez dans l'onglet **"Configuration"**.
     2.  Collez votre clé dans le champ "Clé API Google Gemini".
-    3.  Cliquez sur "Sauvegarder". La clé est enregistrée dans le `localStorage` de votre navigateur.
+    3.  Cliquez sur "Sauvegarder". La clé est enregistrée dans le `localStorage` de votre navigateur (elle est conservée même si vous réinitialisez l'inventaire).
 
 ### 4.2. Configuration par Paramètre d'URL (HTTP GET)
 
@@ -55,5 +55,7 @@ Lors du premier chargement, l'application détectera ce paramètre, sauvegardera
 
 Pour sauvegarder votre inventaire ou le transférer entre plusieurs appareils (par exemple, de votre PC à votre téléphone), une fonctionnalité d'export/import est disponible dans l'onglet **"Configuration"**.
 
-* **Exporter :** Crée un fichier `obsek_backup.zip` contenant toutes vos données, y compris les images.
-* **Importer :** Vous permet de sélectionner un fichier `obsek_backup.zip` pour restaurer un inventaire. **Attention :** l'importation écrasera toutes les données actuellement présentes dans l'application.
+* **Exporter :** Crée un fichier `obsek_backup.zip` contenant `inventory.json`. Ce fichier contient l'intégralité de votre base de données, y compris les images originales et les miniatures.
+* **Importer :** Vous permet de sélectionner un fichier `obsek_backup.zip` pour restaurer un inventaire.
+    * **Logique de Fusion :** L'importation n'écrase pas aveuglément vos données. L'application compare les objets de l'inventaire local et de l'inventaire importé. Pour chaque objet, elle conserve la version la plus récente en se basant sur la date de dernière modification. Les nouveaux objets sont simplement ajoutés.
+    * **Import à vide :** Si votre inventaire local est vide, l'importation se fait directement sans demande de confirmation.
