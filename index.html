@@ -210,7 +210,7 @@
                 tabs[key].classList.toggle('tab-inactive', !isActive);
                 contents[key].classList.toggle('hidden', !isActive);
             });
-            if (view === 'config') apiKeyInput.focus();
+            if (view === 'config' && ! apiKey.value.length) apiKeyInput.focus();
         }
 
         function updateUploadVisibility() {
