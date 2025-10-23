@@ -280,11 +280,15 @@
              try {
                 await db.delete(STORE_NAME, itemId);
                 await loadInventory(); // Reload to refresh UI
-                closeModal();
+                if (history.state && history.state.modalOpen) {
+                    history.back(); // Close the confirmation modal
+                }
             } catch (e) {
                 console.error("Error deleting item from IndexedDB:", e);
                 alert("Erreur lors de la suppression de l'objet.");
-                closeModal(); // Ensure modal closes even on error
+                if (history.state && history.state.modalOpen) {
+                    history.back(); // Close the confirmation modal even on error
+                }
             }
         }
 
@@ -383,19 +387,18 @@
                         await tx.done;
 
                         showImportMessage(true, `Importation terminée: ${itemsAdded} objet(s) ajouté(s), ${itemsUpdated} objet(s) mis à jour.`);
-                        closeModal();
+                        if (history.state && history.state.modalOpen) history.back(); // Close modal
                         setTimeout(() => location.reload(), 1500); // Reload to reflect changes
 
                     } catch (e) {
                          console.error("Error during merge transaction:", e);
                          showImportMessage(false, "Erreur lors de la fusion des données.");
-                         closeModal();
+                         if (history.state && history.state.modalOpen) history.back(); // Close modal
                     }
                 };
 
-                // Check *current* DB state, not the global `inventory` array
-                const currentLocalItems = await db.getAll(STORE_NAME);
-                if (currentLocalItems.length === 0) {
+                // Check *current* DB state (using the global `inventory` array is fine here as it's loaded)
+                if (inventory.length === 0) {
                     // No local data, just import directly
                     await runImport();
                 } else {
@@ -403,7 +406,7 @@
                     const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Importer et Fusionner les données</h3><p class="mt-2 text-sm text-slate-600">Les nouveaux objets seront ajoutés. Les objets existants seront mis à jour si la version importée est plus récente. Êtes-vous sûr ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-import" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Confirmer la Fusion</button><button id="modal-cancel-import" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
                     openModal(confirmContent);
                     getEl('modal-confirm-import').onclick = runImport;
-                    getEl('modal-cancel-import').onclick = closeModal;
+                    getEl('modal-cancel-import').onclick = () => history.back();
                 }
 
             } catch (e) {
@@ -475,6 +478,11 @@
             document.body.classList.add('overflow-hidden');
             modalPanel.innerHTML = content;
             modal.classList.remove('hidden');
+            
+            // Push state to history to handle back button
+            if (!history.state || !history.state.modalOpen) {
+                history.pushState({ modalOpen: true }, "");
+            }
 
             const modalContainer = getEl('modal-container');
             if (modalContainer) {
@@ -493,7 +501,9 @@
                         if (cancelBtn) {
                             cancelBtn.click(); // Trigger the logic (which includes 'are you sure?' check)
                         } else {
-                            closeModal(); // Fallback for simple modals with no cancel logic
+                            if (history.state && history.state.modalOpen) {
+                                history.back(); // Fallback for simple modals
+                            }
                         }
                     }
                 };
@@ -506,6 +516,15 @@
             currentItemIdInModal = null;
             initialModalState = '';
         }
+
+        // This function handles closing a modal AND popping the history state
+        function closeAndPopModal() {
+            closeModal();
+            if (history.state && history.state.modalOpen) {
+                history.back();
+            }
+        }
+        
         function collectItemDataFromModal() {
             if (!getEl('modal-edit-name')) return null;
             const listingURLs = Array.from(getEl('listing-urls-container').querySelectorAll('span')).map(span => span.textContent);
@@ -530,15 +549,18 @@
                 const currentItem = await db.get(STORE_NAME, item.id);
                 if (!currentItem || currentItem.images.length <= 1) {
                      alert("Vous ne pouvez pas supprimer la dernière photo.");
+                     if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
                      showEditModal(currentItem); // Reopen edit modal
                      return;
                 }
                 currentItem.images.splice(indexToRemove, 1);
                 await updateItem(currentItem.id, { images: currentItem.images }); // Save the change
+                if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
                 showEditModal(currentItem); // Re-render the edit modal with the image removed
             };
             getEl('modal-cancel-delete-img').onclick = async () => {
                  const currentItem = await db.get(STORE_NAME, item.id);
+                 if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
                  showEditModal(currentItem); // Reopen edit modal
             };
         }
@@ -659,8 +681,41 @@
             const statusSelect = getEl('modal-edit-status');
             const soldPriceContainer = getEl('modal-edit-sold-price-container');
             statusSelect.addEventListener('change', (e) => soldPriceContainer.classList.toggle('hidden', e.target.value !== 'Vendu'));
-            getEl('modal-delete-item').onclick = () => { closeModal(); setTimeout(async () => { const itemToDelete = await db.get(STORE_NAME, item.id); if (!itemToDelete) return; const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'objet</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; openModal(confirmContent); getEl('modal-confirm-delete').onclick = () => deleteItem(item.id); getEl('modal-cancel-delete').onclick = closeModal; }, 100); };
-            const attemptToClose = async () => { const currentData = collectItemDataFromModal(); if (!currentData) { closeModal(); return; } const currentItem = await db.get(STORE_NAME, item.id); if (JSON.stringify(currentData) !== initialModalState) { const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; openModal(confirmContent); getEl('modal-confirm-close').onclick = closeModal; getEl('modal-cancel-close').onclick = () => showEditModal(currentItem); } else { closeModal(); } };
+            
+            getEl('modal-delete-item').onclick = () => { 
+                if (history.state && history.state.modalOpen) history.back();
+                setTimeout(async () => { 
+                    const itemToDelete = await db.get(STORE_NAME, item.id); 
+                    if (!itemToDelete) return; 
+                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'objet</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer "${itemToDelete.name}" ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; 
+                    openModal(confirmContent); 
+                    getEl('modal-confirm-delete').onclick = () => deleteItem(item.id); // deleteItem will pop history
+                    getEl('modal-cancel-delete').onclick = () => { if (history.state && history.state.modalOpen) history.back(); }; 
+                }, 100); 
+            };
+
+            const attemptToClose = async () => { 
+                const currentData = collectItemDataFromModal(); 
+                if (!currentData) { 
+                    if (history.state && history.state.modalOpen) history.back();
+                    return; 
+                } 
+                const currentItem = await db.get(STORE_NAME, item.id); 
+                if (JSON.stringify(currentData) !== initialModalState) { 
+                    const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; 
+                    openModal(confirmContent); 
+                    getEl('modal-confirm-close').onclick = () => { 
+                        if (history.state && history.state.modalOpen) history.go(-2); // Close confirm and edit
+                    }; 
+                    getEl('modal-cancel-close').onclick = async () => { 
+                        if (history.state && history.state.modalOpen) history.back(); // Close confirm, re-opens edit
+                        showEditModal(await db.get(STORE_NAME, item.id));
+                    }; 
+                } else { 
+                    if (history.state && history.state.modalOpen) history.back();
+                } 
+            };
+
             getEl('modal-cancel-edit').onclick = attemptToClose;
             
             const searchHandler = (urlTemplate) => { const itemName = getEl('modal-edit-name').value; const url = urlTemplate.replace('{query}', encodeURIComponent(itemName)); window.open(url, '_blank'); };
@@ -668,7 +723,7 @@
             getEl('modal-search-leboncoin').onclick = () => searchHandler('https://www.leboncoin.fr/recherche?text={query}');
             getEl('modal-reanalyze-image').onclick = async () => { const btn = getEl('modal-reanalyze-image'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const mainImageSrc = getEl('modal-main-image').src; const imgData = currentItemState.images.find(img => img.thumbnail === mainImageSrc); if(!imgData || !imgData.original) throw new Error("Image originale non trouvée pour l'analyse."); const analysisResult = await analyzeItemApi({ image: imgData.original }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Image re-analysis failed:", err); alert("L'analyse de l'image a échoué."); } finally { btn.disabled = false; btn.textContent = "Analyser l'image"; } };
             getEl('modal-update-estimation').onclick = async () => { const btn = getEl('modal-update-estimation'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const analysisResult = await analyzeItemApi({ name: getEl('modal-edit-name').value, description: getEl('modal-edit-description').value, quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1 }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Text-based estimation failed:", err); alert("L'actualisation de l'estimation a échoué."); } finally { btn.disabled = false; btn.textContent = "Actualiser l'estimation"; } };
-            getEl('modal-save-edit').onclick = () => { const finalData = collectItemDataFromModal(); const updatedData = { ...finalData, images: currentItemState.images }; updateItem(item.id, updatedData); closeModal(); };
+            getEl('modal-save-edit').onclick = () => { const finalData = collectItemDataFromModal(); const updatedData = { ...finalData, images: currentItemState.images }; updateItem(item.id, updatedData); if (history.state && history.state.modalOpen) history.back(); };
             const initialData = collectItemDataFromModal();
             initialModalState = JSON.stringify(initialData);
         }
@@ -693,17 +748,15 @@
         async function init() {
             await initDB(); // Initialize DB first
 
-			// Register Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                        console.log('Service Worker registered with scope:', registration.scope);
-                    })
-                    .catch((error) => {
-                        console.error('Service Worker registration failed:', error);
-                    });
-            }
-			
+            // Listen for the back button
+            window.addEventListener('popstate', (event) => {
+                if (!modal.classList.contains('hidden')) {
+                    // Modal is open, so the popstate is our "fake" state.
+                    // We simply close the modal. The history state is already popped.
+                    closeModal();
+                }
+            });
+
             Object.keys(tabs).forEach(key => tabs[key].addEventListener('click', () => navigate(key)));
             
             saveApiKeyButton.addEventListener('click', () => {
@@ -727,9 +780,12 @@
                              console.error("Error clearing IndexedDB store:", e);
                          }
                     }
+                    if (history.state && history.state.modalOpen) history.back(); // Pop modal state
                     location.reload(); // Reload to reflect the empty state
                 };
-                getEl('modal-cancel-reset').onclick = closeModal;
+                getEl('modal-cancel-reset').onclick = () => {
+                    if (history.state && history.state.modalOpen) history.back();
+                };
             });
 
             exportDataBtn.addEventListener('click', exportData); 
@@ -808,4 +864,3 @@
     </script>
 </body>
 </html>
-
