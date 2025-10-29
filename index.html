@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Obsek — Assistant Inventaire & Estimation</title>
 	<meta name="theme-color" content="#596878">
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwZWE1ZTkiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMyIDU2aDEyOE0zMiA5NmgxMjhNMzIgMTM2aDcyIiAvPjxwYXRoIGQ9Ik0xNDggMTE2YTI4IDI4IDAgMSAxIDAgNTYgMjggMjggMCAwIDEgMC01NloiIC8+PHBhdGggZD0ibTE2OCAxNzIgMTIgMTIiIC8+PHJlY3QgeD0iMjAiIHk9IjIwIiB3aWR0aD0iMTUyIiBoZWlnaHQ9IjE1MiIgcng9IjE2IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZT0iIzMzNDE1NSIvPjwvc3ZnPg==">
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIiBmaWxsPSJub25lIiBzdHJva2U9IiMwZWE1ZTkiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTMyIDU2aDEyOE0zMiA5NmgxMjhNMzIgMTM2aDcyIiAvPjxwYXRoIGQ9Ik0xNDggMTE2YTI4IDI4IDAgMSAxIDAgNTYgMjggMjggMCAwIDEgMC01NloiIC8+PHBhdGggZD0ibTE2OCAxNzIgMTIgMTIiIC8+PHJlY3QgeD0iMjAiIHk9IjIwIiB3aWR0aD0iMTUyIiBoZWlnaHQ9IjE1MCIgcng9IjE2IiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZT0iIzMzNDE1NSIvPjwvc3ZnPg==">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -38,6 +38,54 @@
         .thumbnail-container:hover .thumbnail-delete {
             opacity: 1;
         }
+        /* Style for the active tag filter */
+        .tag-filter.active {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: white;
+        }
+        .tag-filter {
+             /* background-color: #e2e8f0; bg-slate-200 */
+             /* color: #334155; text-slate-700 */
+        }
+        .tag-filter:hover {
+            opacity: 0.8;
+        }
+        .tag-filter.active:hover {
+            background-color: #3b82f6; /* bg-blue-500 */
+        }
+        /* Style for tag suggestions in modal */
+        .tag-suggestion {
+            background-color: #f1f5f9; /* bg-slate-100 */
+            color: #475569; /* text-slate-600 */
+            cursor: pointer;
+        }
+        .tag-suggestion:hover {
+            background-color: #e2e8f0; /* bg-slate-200 */
+        }
+        /* Ensure color input doesn't get browser default styles */
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 2rem; /* w-8 */
+            height: 2rem; /* h-8 */
+            padding: 0;
+            border: none;
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 0.375rem;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 0.375rem;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: none;
+            border-radius: 0.375rem;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -58,11 +106,34 @@
                 <nav class="-mb-px flex space-x-6" aria-label="Tabs">
                     <button id="tab-dashboard" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm tab-active">Inventaire</button>
                     <button id="tab-config" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm tab-inactive">Configuration</button>
+                    <button id="tab-tags" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm tab-inactive">Tags</button>
                 </nav>
             </div>
 
             <!-- CONTENT -->
             <div id="content-dashboard">
+                
+                <!-- Filter Section -->
+                <div class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-grow">
+                            <label for="search-input" class="block text-sm font-medium leading-6 text-slate-900">Rechercher</label>
+                            <div class="mt-1">
+                                <input type="search" name="search-input" id="search-input" class="block w-full rounded-md border-0 py-1.5 pl-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6" placeholder="ex: chaise en bois...">
+                            </div>
+                        </div>
+                        <div class="md:w-2/3">
+                            <label class="block text-sm font-medium leading-6 text-slate-900">Filtrer par Tag</label>
+                            <div id="tags-filter-container" class="mt-1 flex flex-wrap gap-2">
+                                <!-- Tags will be dynamically injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Progress Section (now here, but hidden) -->
+                <div id="batch-progress-section" class="hidden mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200"></div>
+
                 <!-- Summary -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -79,35 +150,12 @@
                     </div>
                 </div>
 
-                <!-- Add Item Section -->
-                <div class="mb-8">
-                    <div id="api-key-prompt" class="hidden text-center py-10 px-6 bg-white rounded-xl shadow-sm border border-slate-200">
-                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" /></svg>
-                        <h3 class="mt-2 text-sm font-semibold text-slate-900">Ajoutez votre clé API pour commencer</h3>
-                        <p class="mt-1 text-sm text-slate-500">Pour analyser et ajouter de nouveaux objets, veuillez d'abord configurer votre clé API.</p>
-                        <button id="go-to-config-btn" class="mt-4 rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Aller à la Configuration</button>
-                    </div>
-                     <div id="upload-interface" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div id="upload-section">
-                            <h2 class="text-xl font-semibold mb-3 text-slate-800">Ajouter de nouveaux objets</h2>
-                            <div id="drop-zone" class="mt-2 flex justify-center rounded-lg border-2 border-dashed border-slate-300 px-6 py-10 transition-colors">
-                                <div id="drop-zone-content" class="text-center">
-                                    <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                    <div class="mt-4 flex text-sm leading-6 text-slate-600"><label for="file-upload" class="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500"><span>Cliquez pour choisir</span><input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" multiple></label><p class="pl-1">ou glissez-déposez n'importe où</p></div>
-                                    <p class="text-xs leading-5 text-slate-500">PNG, JPG, GIF jusqu'à 10MB</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="batch-progress-section" class="hidden"></div>
-                    </div>
-                </div>
-
                  <!-- Inventory Grid -->
                 <div id="inventory-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
                  <div id="inventory-empty-state" class="text-center py-16 px-6 bg-white rounded-xl shadow-sm border border-slate-200">
                     <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"></path></svg>
-                    <h3 class="mt-2 text-sm font-semibold text-slate-900">Aucun objet dans l'inventaire</h3>
-                    <p class="mt-1 text-sm text-slate-500">Commencez par ajouter un objet en utilisant la zone ci-dessus.</p>
+                    <h3 id="inventory-empty-state-title" class="mt-2 text-sm font-semibold text-slate-900">Aucun objet dans l'inventaire</h3>
+                    <p id="inventory-empty-state-message" class="mt-1 text-sm text-slate-500">Commencez par ajouter un objet en utilisant la zone ci-dessus.</p>
                 </div>
             </div>
 
@@ -141,6 +189,17 @@
                     </div>
                 </div>
             </div>
+
+            <div id="content-tags" class="hidden">
+                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                     <h2 class="text-xl font-semibold mb-4 text-slate-800">Gestion des Tags</h2>
+                     <p class="text-sm text-slate-600 mb-6">Assignez des couleurs à vos tags pour mieux vous organiser. Les tags sont créés automatiquement lorsque vous les ajoutez à un objet.</p>
+                     <div id="tags-management-container" class="space-y-3">
+                         <!-- Tag management list will be injected here -->
+                     </div>
+                 </div>
+            </div>
+
         </main>
     </div>
 
@@ -153,21 +212,61 @@
             </div>
         </div>
     </div>
+    
+    <!-- Floating Action Button -->
+    <div class="fixed bottom-6 right-6">
+         <!-- This hidden input is used by the FAB -->
+         <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" multiple>
+         <button id="fab-add-item" type="button" class="hidden rounded-full bg-blue-600 p-4 text-white shadow-lg transition-transform hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+         </button>
+    </div>
+
 
     <script type="module">
         // --- STATE MANAGEMENT ---
         let inventory = [];
+        let allTags = new Map(); // Use a Map for easy lookup by ID
+        let activeTag = null;
+        let searchTerm = '';
         let currentItemIdInModal = null;
         let initialModalState = '';
         let db; // IndexedDB database object
         const DB_NAME = 'obsekDB';
-        const DB_VERSION = 1;
+        const DB_VERSION = 2; // Incremented DB version
         const STORE_NAME = 'items';
+        const TAG_STORE_NAME = 'tags';
         const getEl = (id) => document.getElementById(id);
 
+        // --- UTILITY FUNCTIONS ---
+        function getContrastTextColor(hexColor) {
+            if (!hexColor) return '#0f172a'; // Default dark text
+            try {
+                let hex = hexColor.replace('#', '');
+                if (hex.length === 3) {
+                    hex = hex.split('').map(char => char + char).join('');
+                }
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+
+                // Calculate luminance (YIQ formula)
+                const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+
+                // Return black for light backgrounds (luminance > 186), white for dark
+                return luminance > 186 ? '#0f172a' : '#ffffff';
+            } catch (e) {
+                console.error("Error calculating contrast color:", e);
+                return '#0f172a'; // Fallback
+            }
+        }
+
+
         // --- DOM Elements ---
-        const tabs = { dashboard: getEl('tab-dashboard'), config: getEl('tab-config') };
-        const contents = { dashboard: getEl('content-dashboard'), config: getEl('content-config') };
+        const tabs = { dashboard: getEl('tab-dashboard'), config: getEl('tab-config'), tags: getEl('tab-tags') };
+        const contents = { dashboard: getEl('content-dashboard'), config: getEl('content-config'), tags: getEl('content-tags') };
         const apiKeyInput = getEl('api-key-input');
         const saveApiKeyButton = getEl('save-api-key');
         const keySavedMessage = getEl('key-saved-message');
@@ -175,7 +274,7 @@
         const exportDataBtn = getEl('export-data-btn');
         const importDataInput = getEl('import-data-input');
         const apiKeyPrompt = getEl('api-key-prompt');
-        const goToConfigBtn = getEl('go-to-config-btn');
+        // const goToConfigBtn = getEl('go-to-config-btn'); // This element is gone
         const uploadInterface = getEl('upload-interface');
         const fileUpload = getEl('file-upload');
         const batchProgressSection = getEl('batch-progress-section');
@@ -183,6 +282,10 @@
         const modalPanel = getEl('modal-panel');
         const inventoryContainer = getEl('inventory-container');
         const inventoryEmptyState = getEl('inventory-empty-state');
+        const searchInput = getEl('search-input');
+        const tagsFilterContainer = getEl('tags-filter-container');
+        const tagsManagementContainer = getEl('tags-management-container');
+        const fabAddItem = getEl('fab-add-item');
         const summary = {
             totalItems: getEl('summary-total-items'),
             toSellValue: getEl('summary-to-sell-value'),
@@ -192,9 +295,15 @@
         // --- IndexedDB Setup ---
         async function initDB() {
             db = await idb.openDB(DB_NAME, DB_VERSION, {
-                upgrade(db) {
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                upgrade(db, oldVersion, newVersion, tx) {
+                    if (oldVersion < 1) {
                         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                    if (oldVersion < 2) {
+                        if (!db.objectStoreNames.contains(TAG_STORE_NAME)) {
+                            db.createObjectStore(TAG_STORE_NAME, { keyPath: 'id' });
+                        }
+                        // Migration logic for old items will be in loadInventory
                     }
                 },
             });
@@ -210,17 +319,40 @@
                 tabs[key].classList.toggle('tab-inactive', !isActive);
                 contents[key].classList.toggle('hidden', !isActive);
             });
-            if (view === 'config' && ! apiKeyInput.value.length) apiKeyInput.focus();
+            if (view === 'config' && !apiKeyInput.value.length) apiKeyInput.focus();
+            if (view === 'tags') renderTagsManagement();
+
+            // Show FAB only on dashboard and if API key is set
+            fabAddItem.classList.toggle('hidden', view !== 'dashboard' || !apiKeyInput.value);
         }
 
         function updateUploadVisibility() {
-            if (apiKeyInput.value) {
-                apiKeyPrompt.classList.add('hidden');
-                uploadInterface.classList.remove('hidden');
-            } else {
-                apiKeyPrompt.classList.remove('hidden');
-                uploadInterface.classList.add('hidden');
-            }
+            const hasApiKey = !!apiKeyInput.value;
+            // No longer show/hide the main prompt, just control the FAB
+            fabAddItem.classList.toggle('hidden', !hasApiKey || tabs.dashboard.classList.contains('tab-inactive'));
+            
+            // Still show the API key prompt block if no key is set and we're on the dashboard
+            // apiKeyPrompt.classList.toggle('hidden', hasApiKey); // This element is gone
+            // uploadInterface.classList.toggle('hidden', !hasApiKey); // This element is gone
+        }
+        
+        function getRandomColor() {
+            const colors = ['#fecaca', '#fee2e2', '#ffedd5', '#fef3c7', '#dcfce7', '#d1fae5', '#cffafe', '#e0f2fe', '#e0e7ff', '#eef2ff', '#f5f3ff', '#fae8ff'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        async function ensureTagsExist(tagIds) {
+            if (!db || tagIds.length === 0) return;
+            const tx = db.transaction(TAG_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(TAG_STORE_NAME);
+            const promises = tagIds.map(async (tagId) => {
+                const exists = await store.get(tagId);
+                if (!exists) {
+                    await store.add({ id: tagId, color: getRandomColor() });
+                }
+            });
+            await Promise.all(promises);
+            await tx.done;
         }
 
         async function loadInventory() {
@@ -230,7 +362,66 @@
             }
             try {
                 inventory = await db.getAll(STORE_NAME);
-                // No migration needed here as data is structured on save/import
+                const tagsFromDB = await db.getAll(TAG_STORE_NAME);
+                allTags = new Map(tagsFromDB.map(t => [t.id, t]));
+
+                let needsMigration = false;
+                const tagMigrationSet = new Set();
+                
+                inventory.forEach(item => {
+                    // Migrate old data structures
+                    if (!item.tags) {
+                        item.tags = [];
+                        needsMigration = true;
+                    }
+                    if (item.listingURL) {
+                        item.listingURLs = [item.listingURL];
+                        delete item.listingURL;
+                        needsMigration = true;
+                    } else if (!item.listingURLs) {
+                        item.listingURLs = [];
+                        needsMigration = true;
+                    }
+                    if (!item.dateModified) {
+                        item.dateModified = item.dateAdded || new Date(0).toISOString();
+                        needsMigration = true;
+                    }
+                    if (item.images && Array.isArray(item.images) && typeof item.images[0] === 'string') {
+                        item.images = item.images.map(imgBase64 => ({ thumbnail: imgBase64, original: imgBase64 })); 
+                        needsMigration = true;
+                    } else if (!item.images) {
+                        item.images = [];
+                        needsMigration = true;
+                    }
+                    
+                    // Collect tags for auto-creation in tags store
+                    item.tags.forEach(tagId => {
+                        if (!allTags.has(tagId)) {
+                            tagMigrationSet.add(tagId);
+                        }
+                    });
+                });
+
+                // Auto-create tags in the tag store if they exist on items but not in the store
+                if (tagMigrationSet.size > 0) {
+                    console.log("Migrating orphaned tags:", tagMigrationSet);
+                    const tx = db.transaction(TAG_STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(TAG_STORE_NAME);
+                    const promises = Array.from(tagMigrationSet).map(tagId => 
+                        store.add({ id: tagId, color: getRandomColor() })
+                    );
+                    await Promise.all(promises);
+                    await tx.done;
+                    // Reload tags map
+                    const tagsFromDB = await db.getAll(TAG_STORE_NAME);
+                    allTags = new Map(tagsFromDB.map(t => [t.id, t]));
+                }
+
+                if (needsMigration) {
+                    console.log("Migrating old item data structure...");
+                    await saveInventoryBatch(inventory); // Save all migrated items
+                }
+
                 renderDashboard();
             } catch (e) {
                 console.error("Error loading inventory from IndexedDB:", e);
@@ -239,14 +430,34 @@
             }
         }
 
-        // We don't need a global saveInventory anymore. Operations are atomic.
+        async function saveInventoryBatch(items) {
+             if (!db) return;
+             try {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const now = new Date().toISOString();
+                const promises = items.map(item => {
+                     item.dateModified = now; // Update timestamp on save
+                     return store.put(item);
+                });
+                await Promise.all(promises);
+                await tx.done;
+                await loadInventory(); // Reload after batch save
+             } catch (e) {
+                 console.error("Error saving inventory batch to IndexedDB:", e);
+             }
+        }
+
 
         async function addItem(item) {
             if (!db) return;
             item.id = item.id || crypto.randomUUID(); // Ensure ID
             item.dateAdded = new Date().toISOString();
             item.dateModified = item.dateAdded;
+            item.tags = item.tags || []; // Ensure tags array exists
+
             try {
+                await ensureTagsExist(item.tags); // Auto-create tags
                 await db.add(STORE_NAME, item);
                 await loadInventory(); // Reload to refresh UI
             } catch (e) {
@@ -258,6 +469,8 @@
         async function updateItem(itemId, updatedData) {
             if (!db) return;
             try {
+                await ensureTagsExist(updatedData.tags || []); // Auto-create new tags
+                
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 const store = tx.objectStore(STORE_NAME);
                 const currentItem = await store.get(itemId);
@@ -307,6 +520,8 @@
         async function exportData() {
             if (!db) return;
             const allItems = await db.getAll(STORE_NAME);
+            const allTags = await db.getAll(TAG_STORE_NAME);
+
             if (allItems.length === 0) {
                 alert("Il n'y a rien à exporter.");
                 return;
@@ -314,6 +529,7 @@
 
             const zip = new JSZip();
             zip.file("inventory.json", JSON.stringify(allItems));
+            zip.file("tags.json", JSON.stringify(allTags)); // Also export tags
 
             try {
                 const content = await zip.generateAsync({ type: "blob" });
@@ -330,6 +546,7 @@
             try {
                 const zip = await JSZip.loadAsync(file);
                 const inventoryFile = zip.file("inventory.json");
+                const tagsFile = zip.file("tags.json");
 
                 if (!inventoryFile) {
                     alert("Fichier de sauvegarde invalide : inventory.json manquant.");
@@ -338,8 +555,15 @@
 
                 const importedInventoryData = await inventoryFile.async("string");
                 const importedInventory = JSON.parse(importedInventoryData);
+                let importedTags = [];
+                if (tagsFile) {
+                    importedTags = JSON.parse(await tagsFile.async("string"));
+                }
 
-                if (!Array.isArray(importedInventory)) throw new Error("Format invalide");
+                if (!Array.isArray(importedInventory)) throw new Error("Format inventaire invalide");
+                if (!Array.isArray(importedTags)) throw new Error("Format tags invalide");
+                
+                const allTagsToMigrate = new Set();
 
                 // --- Add migration step for older format imports ---
                 importedInventory.forEach(item => {
@@ -353,38 +577,69 @@
                     if (!item.dateModified) {
                         item.dateModified = item.dateAdded || new Date(0).toISOString();
                     }
+                    if (!item.tags) { // Add tags array if missing
+                        item.tags = [];
+                    }
+                    // Collect tags for auto-creation if tags.json is missing
+                    if (!tagsFile) {
+                         item.tags.forEach(t => allTagsToMigrate.add(t));
+                    }
                 });
+
+                // If tags.json was missing, create tag objects from item tags
+                if (!tagsFile && allTagsToMigrate.size > 0) {
+                    allTagsToMigrate.forEach(tagId => {
+                        importedTags.push({ id: tagId, color: getRandomColor() });
+                    });
+                }
                  // --- End migration step ---
 
 
                 const runImport = async () => {
                     try {
-                        const tx = db.transaction(STORE_NAME, 'readwrite');
-                        const store = tx.objectStore(STORE_NAME);
-                        const localItems = await store.getAll(); // Get current items for merging
+                        const itemTx = db.transaction(STORE_NAME, 'readwrite');
+                        const itemStore = itemTx.objectStore(STORE_NAME);
+                        const localItems = await itemStore.getAll();
                         const localInventoryMap = new Map(localItems.map(item => [item.id, item]));
                         let itemsAdded = 0;
                         let itemsUpdated = 0;
-                        let promises = [];
+                        let itemPromises = [];
 
                         importedInventory.forEach(importedItem => {
                             const localItem = localInventoryMap.get(importedItem.id);
-
                             if (localItem) {
                                 const localDate = new Date(localItem.dateModified);
                                 const importedDate = new Date(importedItem.dateModified);
                                 if (importedDate > localDate) {
-                                    promises.push(store.put(importedItem)); // Update
+                                    itemPromises.push(itemStore.put(importedItem)); // Update
                                     itemsUpdated++;
                                 }
                             } else {
-                                promises.push(store.add(importedItem)); // Add new
+                                itemPromises.push(itemStore.add(importedItem)); // Add new
                                 itemsAdded++;
                             }
                         });
+                        await Promise.all(itemPromises);
+                        await itemTx.done;
+                        
+                        // Now merge tags
+                        const tagTx = db.transaction(TAG_STORE_NAME, 'readwrite');
+                        const tagStore = tagTx.objectStore(TAG_STORE_NAME);
+                        const localTags = await tagStore.getAll();
+                        const localTagMap = new Map(localTags.map(tag => [tag.id, tag]));
+                        let tagsPromises = [];
 
-                        await Promise.all(promises);
-                        await tx.done;
+                        importedTags.forEach(importedTag => {
+                            if (!localTagMap.has(importedTag.id)) {
+                                tagsPromises.push(tagStore.add(importedTag)); // Add new tag
+                            } else {
+                                // Simple override: imported tag wins
+                                tagsPromises.push(tagStore.put(importedTag));
+                            }
+                        });
+                        await Promise.all(tagsPromises);
+                        await tagTx.done;
+
 
                         showImportMessage(true, `Importation terminée: ${itemsAdded} objet(s) ajouté(s), ${itemsUpdated} objet(s) mis à jour.`);
                         if (history.state && history.state.modalOpen) history.back(); // Close modal
@@ -406,7 +661,7 @@
                     const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Importer et Fusionner les données</h3><p class="mt-2 text-sm text-slate-600">Les nouveaux objets seront ajoutés. Les objets existants seront mis à jour si la version importée est plus récente. Êtes-vous sûr ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-import" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Confirmer la Fusion</button><button id="modal-cancel-import" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
                     openModal(confirmContent);
                     getEl('modal-confirm-import').onclick = runImport;
-                    getEl('modal-cancel-import').onclick = () => history.back();
+                    getEl('modal-cancel-import').onclick = () => { if (history.state && history.state.modalOpen) history.back(); };
                 }
 
             } catch (e) {
@@ -420,20 +675,141 @@
         // --- RENDER FUNCTIONS ---
         function renderDashboard() {
             inventoryContainer.innerHTML = '';
-            inventory.length === 0 ? inventoryEmptyState.classList.remove('hidden') : inventoryEmptyState.classList.add('hidden');
-            inventory.length > 0 ? inventoryContainer.classList.remove('hidden') : inventoryContainer.classList.add('hidden');
-             // Sort by date added, newest first
-            inventory.sort((a, b) => (b.dateAdded && a.dateAdded) ? new Date(b.dateAdded) - new Date(a.dateAdded) : 0);
-            inventory.forEach(item => inventoryContainer.appendChild(createItemCard(item)));
-            updateSummary();
+            
+            // 1. Filter the inventory
+            const filteredInventory = inventory.filter(item => {
+                const searchMatch = searchTerm.length === 0 || 
+                                    (item.name && item.name.toLowerCase().includes(searchTerm)) || 
+                                    (item.description && item.description.toLowerCase().includes(searchTerm));
+                const tagMatch = !activeTag || (item.tags && item.tags.includes(activeTag));
+                return searchMatch && tagMatch;
+            });
+
+            // 2. Render tags based on *full* inventory
+            renderTagFilters();
+            
+            // 3. Render filtered items
+            if (filteredInventory.length === 0) {
+                inventoryContainer.classList.add('hidden');
+                inventoryEmptyState.classList.remove('hidden');
+                if (searchTerm || activeTag) {
+                    getEl('inventory-empty-state-title').textContent = "Aucun résultat";
+                    getEl('inventory-empty-state-message').textContent = "Aucun objet ne correspond à vos critères de recherche.";
+                } else {
+                    getEl('inventory-empty-state-title').textContent = "Aucun objet dans l'inventaire";
+                    getEl('inventory-empty-state-message').textContent = "Commencez par ajouter un objet en utilisant la zone ci-dessus.";
+                }
+            } else {
+                inventoryEmptyState.classList.add('hidden');
+                inventoryContainer.classList.remove('hidden');
+                 // Sort by date added, newest first
+                filteredInventory.sort((a, b) => (b.dateAdded && a.dateAdded) ? new Date(b.dateAdded) - new Date(a.dateAdded) : 0);
+                filteredInventory.forEach(item => inventoryContainer.appendChild(createItemCard(item)));
+            }
+
+            // 4. Update summary based on *filtered* list
+            updateSummary(filteredInventory);
         }
-        function updateSummary() {
-            summary.totalItems.textContent = inventory.length;
-            const toSellValue = inventory.filter(i => i.status === 'À Vendre').reduce((acc, i) => acc + ((i.lowEstimate || 0) * (i.quantity || 1)), 0);
-            const soldValue = inventory.filter(i => i.status === 'Vendu').reduce((acc, i) => acc + (i.soldPrice || 0), 0);
+
+        function renderTagFilters() {
+            const sortedTags = Array.from(allTags.values()).sort((a, b) => a.id.localeCompare(b.id));
+            
+            let tagsHtml = `<button data-tag="" class="tag-filter rounded-full px-3 py-1 text-sm font-medium ${!activeTag ? 'active' : ''}">Tous</button>`;
+            
+            sortedTags.forEach(tag => {
+                const textColor = getContrastTextColor(tag.color);
+                tagsHtml += `<button data-tag="${tag.id}" class="tag-filter rounded-full px-3 py-1 text-sm font-medium ${activeTag === tag.id ? 'active' : ''}" style="background-color: ${activeTag === tag.id ? '' : tag.color}; color: ${activeTag === tag.id ? '' : textColor}">${tag.id}</button>`;
+            });
+            
+            tagsFilterContainer.innerHTML = tagsHtml;
+        }
+
+        async function renderTagsManagement() {
+            if (!db) return;
+            const tags = await db.getAll(TAG_STORE_NAME);
+            tags.sort((a, b) => a.id.localeCompare(b.id));
+            tagsManagementContainer.innerHTML = '';
+            
+            if (tags.length === 0) {
+                 tagsManagementContainer.innerHTML = `<p class="text-sm text-slate-500 text-center">Aucun tag créé. Ajoutez des tags à vos objets pour les voir apparaître ici.</p>`;
+                 return;
+            }
+
+            tags.forEach(tag => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center gap-x-3 p-3 bg-slate-50 rounded-lg';
+                el.innerHTML = `
+                    <input type="color" data-id="${tag.id}" value="${tag.color || '#e2e8f0'}" class="w-8 h-8 rounded-md border border-slate-300">
+                    <span class="flex-1 font-medium text-slate-700">${tag.id}</span>
+                    <button data-id="${tag.id}" class="delete-tag-btn text-red-500 hover:text-red-700 font-semibold">Supprimer</button>
+                `;
+                
+                el.querySelector('input[type="color"]').addEventListener('change', (e) => {
+                    updateTag(e.target.dataset.id, { color: e.target.value });
+                });
+                el.querySelector('.delete-tag-btn').addEventListener('click', (e) => {
+                    deleteTag(e.target.dataset.id);
+                });
+
+                tagsManagementContainer.appendChild(el);
+            });
+        }
+
+        async function updateTag(tagId, dataToUpdate) {
+            if (!db) return;
+            try {
+                const tx = db.transaction(TAG_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(TAG_STORE_NAME);
+                const tag = await store.get(tagId);
+                if (tag) {
+                    await store.put({ ...tag, ...dataToUpdate });
+                }
+                await tx.done;
+                await loadInventory(); // Reload all data to reflect changes
+            } catch (e) {
+                console.error("Error updating tag:", e);
+            }
+        }
+
+        async function deleteTag(tagId) {
+            if (!db || !confirm(`Êtes-vous sûr de vouloir supprimer le tag "${tagId}" ? Il sera retiré de tous les objets.`)) return;
+
+            try {
+                const itemTx = db.transaction(STORE_NAME, 'readwrite');
+                const itemStore = itemTx.objectStore(STORE_NAME);
+                const allItems = await itemStore.getAll();
+                let promises = [];
+
+                allItems.forEach(item => {
+                    if (item.tags && item.tags.includes(tagId)) {
+                        item.tags = item.tags.filter(t => t !== tagId);
+                        item.dateModified = new Date().toISOString();
+                        promises.push(itemStore.put(item));
+                    }
+                });
+                
+                await Promise.all(promises);
+                await itemTx.done;
+                
+                // Now delete the tag itself
+                await db.delete(TAG_STORE_NAME, tagId);
+
+                await loadInventory(); // Reload all data
+                await renderTagsManagement(); // Refresh the tags list
+                
+            } catch(e) {
+                console.error("Error deleting tag:", e);
+            }
+        }
+
+        function updateSummary(itemsToSummarize) {
+            summary.totalItems.textContent = itemsToSummarize.length;
+            const toSellValue = itemsToSummarize.filter(i => i.status === 'À Vendre').reduce((acc, i) => acc + ((i.lowEstimate || 0) * (i.quantity || 1)), 0);
+            const soldValue = itemsToSummarize.filter(i => i.status === 'Vendu').reduce((acc, i) => acc + (i.soldPrice || 0), 0);
             summary.toSellValue.textContent = `${toSellValue.toFixed(2)} €`;
             summary.soldValue.textContent = `${soldValue.toFixed(2)} €`;
         }
+
         function createItemCard(item) {
             const card = document.createElement('div');
             card.className = "bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden";
@@ -455,6 +831,20 @@
                         <span class="font-bold text-lg text-blue-700 ml-1">${item.lowEstimate || 0}€ - ${item.highEstimate || 0}€</span>
                     </p>`;
             }
+            
+            let tagsHtml = '';
+            if (item.tags && item.tags.length > 0) {
+                tagsHtml = '<div class="flex flex-wrap gap-2 mt-2">';
+                item.tags.forEach(tagId => {
+                    const tag = allTags.get(tagId);
+                    if (tag) {
+                         const textColor = getContrastTextColor(tag.color);
+                         tagsHtml += `<span class="rounded-full px-2 py-0.5 text-xs font-medium" style="background-color:${tag.color}; color:${textColor};">${tag.id}</span>`;
+                    }
+                });
+                tagsHtml += '</div>';
+            }
+
 
             card.innerHTML = `
                 <div data-action="edit" data-id="${item.id}" class="cursor-pointer group relative flex-grow flex flex-col">
@@ -463,7 +853,8 @@
                     ${(item.quantity || 1) > 1 ? `<div class="absolute bottom-2 left-2 bg-slate-900 bg-opacity-60 text-white text-xs font-semibold px-2 py-1 rounded-full">x${item.quantity}</div>` : ''}
                     <div class="p-4 flex flex-col flex-grow">
                         <div class="flex justify-between items-start"><h3 class="font-semibold text-slate-900 pr-2 flex-1">${item.name}</h3><span class="text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[item.status] || ''}">${item.status}</span></div>
-                        <p class="text-sm text-slate-500 mt-1 line-clamp-2">${item.description}</p>
+                        ${tagsHtml}
+                        <p class="text-sm text-slate-500 mt-2 line-clamp-2">${item.description}</p>
                         <div class="mt-4 pt-4 border-t border-slate-100 flex-grow flex flex-col justify-end">
                             ${priceHtml}
                             ${firstListingURL ? `<a href="${firstListingURL}" target="_blank" rel="noopener noreferrer" class="mt-2 text-sm text-center w-full block bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1.5 px-3 rounded-md">Voir l'annonce</a>` : ''}
@@ -519,15 +910,22 @@
 
         // This function handles closing a modal AND popping the history state
         function closeAndPopModal() {
-            closeModal();
-            if (history.state && history.state.modalOpen) {
+            // Check if modal is open before going back
+            if (!modal.classList.contains('hidden') && history.state && history.state.modalOpen) {
                 history.back();
+            } else {
+                closeModal(); // Failsafe if history state is somehow out of sync
             }
         }
         
         function collectItemDataFromModal() {
             if (!getEl('modal-edit-name')) return null;
             const listingURLs = Array.from(getEl('listing-urls-container').querySelectorAll('span')).map(span => span.textContent);
+            const tagsInput = getEl('modal-edit-tags').value;
+            const tags = tagsInput.split(',')
+                                 .map(tag => tag.trim().toLowerCase()) // Standardize to lowercase
+                                 .filter(tag => tag.length > 0); // Enlever les tags vides
+
             return {
                 name: getEl('modal-edit-name').value,
                 description: getEl('modal-edit-description').value,
@@ -536,32 +934,27 @@
                 highEstimate: parseFloat(getEl('modal-edit-high').value),
                 status: getEl('modal-edit-status').value,
                 soldPrice: getEl('modal-edit-status').value === 'Vendu' ? (parseFloat(getEl('modal-edit-sold-price').value) || null) : null,
-                listingURLs: listingURLs
+                listingURLs: listingURLs,
+                tags: tags
             };
         }
         
-        function confirmDeleteImage(item, indexToRemove) {
-            const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'image ?</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer cette image ? Cette action est irréversible.</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete-img" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete-img" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
+        function confirmDeleteImage(item, indexToRemove, currentItemState) {
+            const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Supprimer l'image ?</h3><p class="mt-2 text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer cette image ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-delete-img" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Supprimer</button><button id="modal-cancel-delete-img" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`;
             openModal(confirmContent); // This will attach the new click-outside listener
 
-            getEl('modal-confirm-delete-img').onclick = async () => {
-                // Refetch item from DB to ensure we have the latest version
-                const currentItem = await db.get(STORE_NAME, item.id);
-                if (!currentItem || currentItem.images.length <= 1) {
+            getEl('modal-confirm-delete-img').onclick = () => {
+                if (currentItemState.images.length <= 1) {
                      alert("Vous ne pouvez pas supprimer la dernière photo.");
-                     if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
-                     showEditModal(currentItem); // Reopen edit modal
-                     return;
+                } else {
+                    currentItemState.images.splice(indexToRemove, 1);
                 }
-                currentItem.images.splice(indexToRemove, 1);
-                await updateItem(currentItem.id, { images: currentItem.images }); // Save the change
                 if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
-                showEditModal(currentItem); // Re-render the edit modal with the image removed
+                showEditModal(currentItemState); // Re-render the edit modal
             };
-            getEl('modal-cancel-delete-img').onclick = async () => {
-                 const currentItem = await db.get(STORE_NAME, item.id);
+            getEl('modal-cancel-delete-img').onclick = () => {
                  if (history.state && history.state.modalOpen) history.back(); // Pop confirm modal
-                 showEditModal(currentItem); // Reopen edit modal
+                 showEditModal(item); // Reopen edit modal
             };
         }
 
@@ -589,6 +982,11 @@
                         <!-- Right Column: Details -->
                         <div class="space-y-3">
                             <div><label class="block text-sm text-slate-600">Description</label><textarea id="modal-edit-description" rows="3" class="w-full rounded-md border-slate-300 mt-1">${item.description}</textarea></div>
+                            <div>
+                                <label class="block text-sm text-slate-600">Tags (séparés par virgule)</label>
+                                <input id="modal-edit-tags" type="text" class="w-full rounded-md border-slate-300 mt-1" value="${(item.tags || []).join(', ')}">
+                                <div id="modal-tag-suggestions" class="mt-2 flex flex-wrap gap-2"></div>
+                            </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div><label class="block text-sm text-slate-600">Est. basse (€)</label><input id="modal-edit-low" type="number" class="w-full rounded-md border-slate-300" value="${item.lowEstimate}"></div>
                                 <div><label class="block text-sm text-slate-600">Est. haute (€)</label><input id="modal-edit-high" type="number" class="w-full rounded-md border-slate-300" value="${item.highEstimate}"></div>
@@ -641,6 +1039,29 @@
             const listingUrlsContainer = getEl('listing-urls-container');
             const addUrlBtn = getEl('modal-add-url-btn');
             const urlInput = getEl('modal-edit-url-input');
+            const tagInput = getEl('modal-edit-tags');
+            const tagSuggestions = getEl('modal-tag-suggestions');
+
+            // --- Populate Tag Suggestions ---
+            Array.from(allTags.values()).sort((a,b) => a.id.localeCompare(b.id)).forEach(tag => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'tag-suggestion rounded-full px-3 py-1 text-xs font-medium';
+                button.textContent = tag.id;
+                button.style.backgroundColor = tag.color;
+                button.style.color = getContrastTextColor(tag.color);
+                button.onclick = () => {
+                    const currentTags = tagInput.value.split(',')
+                                            .map(t => t.trim())
+                                            .filter(t => t.length > 0);
+                    if (!currentTags.includes(tag.id)) {
+                        currentTags.push(tag.id);
+                        tagInput.value = currentTags.join(', ');
+                    }
+                };
+                tagSuggestions.appendChild(button);
+            });
+
 
             const updateDownloadButton = () => {
                 const currentThumbnailSrc = mainImage.src;
@@ -669,7 +1090,7 @@
             };
 
             const renderThumbnails = () => { thumbnailsDiv.innerHTML = ''; currentItemState.images.forEach((imgData, index) => { const thumbContainer = document.createElement('div'); thumbContainer.className = 'thumbnail-container'; thumbContainer.innerHTML = `<img src="${imgData.thumbnail}" class="h-16 w-16 object-cover rounded-md cursor-pointer border-2 ${imgData.thumbnail === mainImage.src ? 'border-blue-500' : 'border-transparent'}"><div class="thumbnail-delete" data-index="${index}">&#x2715;</div>`; thumbnailsDiv.appendChild(thumbContainer); }); updateDownloadButton(); };
-            thumbnailsDiv.addEventListener('click', e => { if (e.target.tagName === 'IMG') { mainImage.src = e.target.src; renderThumbnails(); } if (e.target.dataset.index) { confirmDeleteImage(item, parseInt(e.target.dataset.index, 10)); } });
+            thumbnailsDiv.addEventListener('click', e => { if (e.target.tagName === 'IMG') { mainImage.src = e.target.src; renderThumbnails(); } if (e.target.dataset.index) { confirmDeleteImage(item, parseInt(e.target.dataset.index, 10), currentItemState); } });
             const addPhotos = async (files) => { for (const file of files) { const originalBase64 = await readFileAsDataURL(file); const thumbnailBase64 = await createThumbnail(originalBase64); currentItemState.images.push({ original: originalBase64, thumbnail: thumbnailBase64 }); } renderThumbnails(); };
             addPhotosInput.addEventListener('change', (e) => addPhotos(Array.from(e.target.files)));
             window.addPhotosToModal = addPhotos;
@@ -697,22 +1118,25 @@
             const attemptToClose = async () => { 
                 const currentData = collectItemDataFromModal(); 
                 if (!currentData) { 
-                    if (history.state && history.state.modalOpen) history.back();
+                    closeAndPopModal();
                     return; 
                 } 
-                const currentItem = await db.get(STORE_NAME, item.id); 
-                if (JSON.stringify(currentData) !== initialModalState) { 
+                const currentItem = await db.get(STORE_NAME, item.id);
+                // Compare with initial state, but also consider image changes
+                const imagesChanged = JSON.stringify(currentItemState.images) !== JSON.stringify(item.images);
+                if (JSON.stringify(currentData) !== initialModalState || imagesChanged) { 
                     const confirmContent = `<div class="bg-white p-6"><h3 class="text-lg font-semibold">Modifications non sauvegardées</h3><p class="mt-2 text-sm text-slate-600">Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter sans sauvegarder ?</p></div><div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3"><button id="modal-confirm-close" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500">Quitter</button><button id="modal-cancel-close" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Annuler</button></div>`; 
                     openModal(confirmContent); 
                     getEl('modal-confirm-close').onclick = () => { 
                         if (history.state && history.state.modalOpen) history.go(-2); // Close confirm and edit
                     }; 
                     getEl('modal-cancel-close').onclick = async () => { 
-                        if (history.state && history.state.modalOpen) history.back(); // Close confirm, re-opens edit
+                        if (history.state && history.state.modalOpen) history.back(); // Close confirm
+                        // Re-open edit modal (which pushes state again)
                         showEditModal(await db.get(STORE_NAME, item.id));
                     }; 
                 } else { 
-                    if (history.state && history.state.modalOpen) history.back();
+                    closeAndPopModal();
                 } 
             };
 
@@ -723,7 +1147,7 @@
             getEl('modal-search-leboncoin').onclick = () => searchHandler('https://www.leboncoin.fr/recherche?text={query}');
             getEl('modal-reanalyze-image').onclick = async () => { const btn = getEl('modal-reanalyze-image'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const mainImageSrc = getEl('modal-main-image').src; const imgData = currentItemState.images.find(img => img.thumbnail === mainImageSrc); if(!imgData || !imgData.original) throw new Error("Image originale non trouvée pour l'analyse."); const analysisResult = await analyzeItemApi({ image: imgData.original }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Image re-analysis failed:", err); alert("L'analyse de l'image a échoué."); } finally { btn.disabled = false; btn.textContent = "Analyser l'image"; } };
             getEl('modal-update-estimation').onclick = async () => { const btn = getEl('modal-update-estimation'); btn.disabled = true; btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-gray-700 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; try { const analysisResult = await analyzeItemApi({ name: getEl('modal-edit-name').value, description: getEl('modal-edit-description').value, quantity: parseInt(getEl('modal-edit-quantity').value, 10) || 1 }); const analyzedData = analysisResult[0]; getEl('modal-edit-name').value = analyzedData.objet; getEl('modal-edit-description').value = analyzedData.description; getEl('modal-edit-low').value = analyzedData.estimation_basse; getEl('modal-edit-high').value = analyzedData.estimation_haute; } catch(err) { console.error("Text-based estimation failed:", err); alert("L'actualisation de l'estimation a échoué."); } finally { btn.disabled = false; btn.textContent = "Actualiser l'estimation"; } };
-            getEl('modal-save-edit').onclick = () => { const finalData = collectItemDataFromModal(); const updatedData = { ...finalData, images: currentItemState.images }; updateItem(item.id, updatedData); if (history.state && history.state.modalOpen) history.back(); };
+            getEl('modal-save-edit').onclick = () => { const finalData = collectItemDataFromModal(); const updatedData = { ...finalData, images: currentItemState.images }; updateItem(item.id, updatedData); closeAndPopModal(); };
             const initialData = collectItemDataFromModal();
             initialModalState = JSON.stringify(initialData);
         }
@@ -740,7 +1164,7 @@
         function readFileAsDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); }); }
         function createThumbnail(base64, maxWidth = 400, maxHeight = 400) { return new Promise((resolve, reject) => { const img = new Image(); img.src = base64; img.onload = () => { const canvas = document.createElement('canvas'); let { width, height } = img; if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } } else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.onerror = reject; }); }
         async function handleFiles(files) { if (files.length === 0 || !apiKeyInput.value) return; if (batchProgressSection.classList.contains('hidden')) { batchProgressSection.classList.remove('hidden'); batchProgressSection.innerHTML = `<div class="flex justify-between items-center mb-4 mt-6 border-t pt-6"><h2 class="text-xl font-semibold text-slate-800">Progression des analyses</h2><button id="batch-clear-btn" class="rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-300">Effacer terminés</button></div><div id="progress-cards-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>`; getEl('batch-clear-btn').onclick = () => { getEl('progress-cards-container').querySelectorAll('[data-status="done"]').forEach(card => card.remove()); if (getEl('progress-cards-container').childElementCount === 0) batchProgressSection.classList.add('hidden'); }; } const container = getEl('progress-cards-container'); Array.from(files).forEach(file => { const card = document.createElement('div'); card.className = "p-3 bg-slate-100 rounded-lg flex items-center space-x-4"; card.innerHTML = `<div class="flex-shrink-0 h-12 w-12 bg-slate-200 rounded-md animate-pulse"></div><div class="flex-grow min-w-0"><p class="font-medium text-sm text-slate-700 truncate">${file.name}</p><p class="text-xs text-slate-500 status-text">En attente...</p></div><div class="flex-shrink-0 status-icon"><svg class="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`; container.prepend(card); processFile(file, card); }); }
-        async function processFile(file, card) { const updateCardStatus = (isSuccess, statusText, details) => { card.querySelector('.status-text').textContent = statusText; if (details) card.querySelector('.font-medium').textContent = details; const iconContainer = card.querySelector('.status-icon'); if (isSuccess !== null) card.dataset.status = 'done'; if (isSuccess === false) { card.classList.replace('bg-slate-100', 'bg-red-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`; } else if (isSuccess === true) { card.classList.replace('bg-slate-100', 'bg-green-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`; } }; try { updateCardStatus(null, 'Lecture en cours...', file.name); const originalBase64 = await readFileAsDataURL(file); const thumbnailBase64_64 = await createThumbnail(originalBase64, 64, 64); card.querySelector('.flex-shrink-0').classList.remove('animate-pulse', 'bg-slate-200'); card.querySelector('.flex-shrink-0').innerHTML = `<img src="${thumbnailBase64_64}" class="h-12 w-12 object-cover rounded-md">`; updateCardStatus(null, 'Analyse par IA...', file.name); const analysisResults = await analyzeItemApi({ image: originalBase64 }); const itemData = analysisResults[0]; const displayThumbnail = await createThumbnail(originalBase64); const newItem = { id: crypto.randomUUID(), name: itemData.objet, description: itemData.description, lowEstimate: parseFloat(itemData.estimation_basse), highEstimate: parseFloat(itemData.estimation_haute), quantity: 1, status: 'À Vendre', soldPrice: null, images: [{ original: originalBase64, thumbnail: displayThumbnail }], listingURLs: [], dateAdded: new Date().toISOString() }; await addItem(newItem); card.classList.add('cursor-pointer'); card.dataset.action = 'edit'; card.dataset.id = newItem.id; updateCardStatus(true, `Ajouté à l'inventaire`, newItem.name); } catch(err) { console.error(`Failed to process ${file.name}:`, err); updateCardStatus(false, err.message, file.name); } }
+        async function processFile(file, card) { const updateCardStatus = (isSuccess, statusText, details) => { card.querySelector('.status-text').textContent = statusText; if (details) card.querySelector('.font-medium').textContent = details; const iconContainer = card.querySelector('.status-icon'); if (isSuccess !== null) card.dataset.status = 'done'; if (isSuccess === false) { card.classList.replace('bg-slate-100', 'bg-red-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`; } else if (isSuccess === true) { card.classList.replace('bg-slate-100', 'bg-green-100'); iconContainer.innerHTML = `<svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`; } }; try { updateCardStatus(null, 'Lecture en cours...', file.name); const originalBase64 = await readFileAsDataURL(file); const thumbnailBase64_64 = await createThumbnail(originalBase64, 64, 64); card.querySelector('.flex-shrink-0').classList.remove('animate-pulse', 'bg-slate-200'); card.querySelector('.flex-shrink-0').innerHTML = `<img src="${thumbnailBase64_64}" class="h-12 w-12 object-cover rounded-md">`; updateCardStatus(null, 'Analyse par IA...', file.name); const analysisResults = await analyzeItemApi({ image: originalBase64 }); const itemData = analysisResults[0]; const displayThumbnail = await createThumbnail(originalBase64); const newItem = { id: crypto.randomUUID(), name: itemData.objet, description: itemData.description, lowEstimate: parseFloat(itemData.estimation_basse), highEstimate: parseFloat(itemData.estimation_haute), quantity: 1, status: 'À Vendre', soldPrice: null, images: [{ original: originalBase64, thumbnail: displayThumbnail }], listingURLs: [], tags: [], dateAdded: new Date().toISOString() }; await addItem(newItem); card.classList.add('cursor-pointer'); card.dataset.action = 'edit'; card.dataset.id = newItem.id; updateCardStatus(true, `Ajouté à l'inventaire`, newItem.name); } catch(err) { console.error(`Failed to process ${file.name}:`, err); updateCardStatus(false, err.message, file.name); } }
         async function analyzeItemApi(details) { const systemPrompt = `Tu es un expert en estimation d'objets d'occasion. Ta mission est de fournir une liste d'objets identifiés avec une estimation de leur valeur. Tu dois répondre uniquement au format JSON valide.`; const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { "objet": { "type": "STRING" }, "description": { "type": "STRING" }, "estimation_basse": { "type": "NUMBER" }, "estimation_haute": { "type": "NUMBER" } }, required: ["objet", "description", "estimation_basse", "estimation_haute"] } }; let parts; if (details.image) { const prompt = "Identifie le principal objet sur cette image. Rédige une description concise et factuelle pour une annonce de vente d'occasion (type Leboncoin). La description doit servir d'accroche : elle doit être directe, mentionner les points clés de l'objet (matériaux, marque, état apparent) et éviter un ton promotionnel ou de télé-achat. Ignore les détails non pertinents de l'arrière-plan. Fournis également une estimation de sa valeur de revente (basse et haute) en euros, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin."; parts = [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: details.image.split(',')[1] } }]; } else { const prompt = `En te basant sur le nom, la description et la quantité de l'objet fournis, donne une nouvelle estimation de prix (basse et haute) pour sa revente, en te basant principalement sur les prix constatés sur le marché de l'occasion français, et plus spécifiquement sur le site Leboncoin. L'estimation doit refléter la valeur du lot si la quantité est supérieure à 1. Dans ta réponse JSON, retourne le nom et la description qui t'ont été fournis sans les modifier.\n\NObjet: ${details.name}\nQuantité: ${details.quantity}\nDescription: ${details.description}`; parts = [{ text: prompt }]; } const payload = { contents: [{ parts }], systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { responseMimeType: "application/json", responseSchema: schema } }; const result = await makeApiCallWithRetry(payload); const candidate = result.candidates?.[0]; if (candidate && candidate.content?.parts?.[0]?.text) return JSON.parse(candidate.content.parts[0].text); throw new Error("La réponse de l'API est invalide ou vide."); }
         async function makeApiCallWithRetry(payload, maxRetries = 3) { const apiKey = apiKeyInput.value; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`; for (let attempt = 0; attempt < maxRetries; attempt++) { try { const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) { const errorBody = await response.text(); console.error(`API Error (attempt ${attempt + 1}):`, response.status, errorBody); if (response.status === 429 || response.status >= 500) { throw new Error(`API error ${response.status}`); } else { throw new Error(`API error: ${response.status} ${response.statusText}. ${errorBody}`); } } return await response.json(); } catch (error) { if (attempt >= maxRetries - 1) throw error; await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000)); } } }
 
@@ -752,7 +1176,7 @@
             window.addEventListener('popstate', (event) => {
                 if (!modal.classList.contains('hidden')) {
                     // Modal is open, so the popstate is our "fake" state.
-                    // We simply close the modal. The history state is already popped.
+                    // We simply close the modal. The history entry is already removed by the browser's "back" action.
                     closeModal();
                 }
             });
@@ -791,7 +1215,21 @@
             exportDataBtn.addEventListener('click', exportData); 
             importDataInput.addEventListener('change', (e) => importData(e.target.files[0])); 
             
-            goToConfigBtn.addEventListener('click', () => navigate('config'));
+            // goToConfigBtn.addEventListener('click', () => navigate('config')); // This was the error
+            // Correct logic is inside updateUploadVisibility, but the prompt itself also needs a listener
+            document.body.addEventListener('click', (e) => {
+                if(e.target.id === 'go-to-config-btn') {
+                    navigate('config');
+                }
+                if(e.target.id === 'fab-add-item' || e.target.closest('#fab-add-item')) {
+                     if (!apiKeyInput.value) { 
+                        navigate('config'); 
+                    } else {
+                        fileUpload.click();
+                    }
+                }
+            });
+
 
             const urlParams = new URLSearchParams(window.location.search);
             const apiKeyFromUrl = urlParams.get('apiKey');
@@ -806,6 +1244,20 @@
             fileUpload.addEventListener('change', (e) => {
                 if (!apiKeyInput.value) { navigate('config'); return; }
                 handleFiles(e.target.files);
+            });
+
+            // Search and Tag Filter Listeners
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value.toLowerCase();
+                renderDashboard();
+            });
+
+            tagsFilterContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const tag = e.target.dataset.tag;
+                    activeTag = tag === "" ? null : tag;
+                    renderDashboard();
+                }
             });
             
             // Global Dropzone
@@ -864,3 +1316,4 @@
     </script>
 </body>
 </html>
+
